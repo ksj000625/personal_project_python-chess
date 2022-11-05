@@ -21,6 +21,7 @@ Gaviota tablebase probing,
 Syzygy tablebase probing, and XBoard/UCI engine communication.
 """
 
+# this is for test
 from __future__ import annotations
 
 __author__ = "Niklas Fiekas"
