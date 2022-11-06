@@ -49,7 +49,7 @@ except ImportError:
     # Before Python 3.8.
     _WdlModel = str  # type: ignore
 
-
+# T를 뭐든 될수있는 변수형으로 선언하고 ProtocolT은 "Protocol"의 모든 하위 유형일 수 있는 변수로 선언
 T = TypeVar("T")
 ProtocolT = TypeVar("ProtocolT", bound="Protocol")
 
@@ -76,6 +76,19 @@ class EventLoopPolicy(asyncio.AbstractEventLoopPolicy):
     termination (Python 3.9+ on Linux 5.3+). Otherwise, the default child
     watcher is used on the main thread and relatively slow eager polling
     is used on all other threads.
+    """
+    """
+    스레드 로컬 이벤트 루프 및 하위 감시자를 위한 이벤트 루프 정책입니다.
+    각 이벤트 루프가 하위 프로세스를 산란하고 관찰할 수 있도록 보장합니다.
+    메인 스레드에서 실행되지 않을 때에도.
+
+    Windows: 사용: 클래스:'~asyncio.ProactorEventLoop'.
+
+    Unix: 사용: 클래스:'~asyncio.SelectorEventLoop'. 가능하다면,
+    :class:'~asyncio.PidfdChildWatcher'는 하위 프로세스를 탐지하는 데 사용됩니다.
+    종료(Linux 5.3+의 경우 Python 3.9+). 그렇지 않으면 기본 하위 항목
+    워처는 메인 스레드에 사용되며 비교적 느린 열심 폴링입니다.
+    다른 모든 스레드에서 사용됩니다.
     """
     class _Local(threading.local):
         loop: Optional[asyncio.AbstractEventLoop] = None
@@ -278,7 +291,8 @@ class Option:
         elif self.type == "combo":
             value = str(value)
             if value not in (self.var or []):
-                raise EngineError("invalid value for combo option {!r}, got: {} (available: {})".format(self.name, value, ", ".join(self.var) if self.var else "-"))
+                raise EngineError("invalid value for combo option {!r}, got: {} (available: {})".format(
+                    self.name, value, ", ".join(self.var) if self.var else "-"))
             return value
         elif self.type in ["button", "reset", "save"]:
             return None
@@ -429,6 +443,7 @@ class Info(enum.IntFlag):
     CURRLINE = 16
     ALL = BASIC | SCORE | PV | REFUTATION | CURRLINE
 
+
 INFO_NONE = Info.NONE
 INFO_BASIC = Info.BASIC
 INFO_SCORE = Info.SCORE
@@ -512,6 +527,7 @@ class Score(abc.ABC):
     def score(self, *, mate_score: int) -> int: ...
     @typing.overload
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]: ...
+
     @abc.abstractmethod
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]:
         """
@@ -636,6 +652,7 @@ def _sf15_wins(cp: int, *, ply: int) -> int:
     x = min(2000, max(cp, -2000))
     return int(0.5 + 1000 / (1 + math.exp((a - x) / b)))
 
+
 def _sf14_wins(cp: int, *, ply: int) -> int:
     # https://github.com/official-stockfish/Stockfish/blob/sf_14/src/uci.cpp#L200-L220
     m = min(240, max(ply, 0)) / 64
@@ -644,6 +661,7 @@ def _sf14_wins(cp: int, *, ply: int) -> int:
     x = min(2000, max(cp, -2000))
     return int(0.5 + 1000 / (1 + math.exp((a - x) / b)))
 
+
 def _sf12_wins(cp: int, *, ply: int) -> int:
     # https://github.com/official-stockfish/Stockfish/blob/sf_12/src/uci.cpp#L198-L218
     m = min(240, max(ply, 0)) / 64
@@ -651,6 +669,7 @@ def _sf12_wins(cp: int, *, ply: int) -> int:
     b = (((-3.37154371 * m + 28.44489198) * m + -56.67657741) * m) + 72.05858751
     x = min(1000, max(cp, -1000))
     return int(0.5 + 1000 / (1 + math.exp((a - x) / b)))
+
 
 def _lichess_raw_wins(cp: int) -> int:
     return round(1000 / (1 + math.exp(-0.004 * cp)))
@@ -713,6 +732,7 @@ class Mate(Score):
     def score(self, *, mate_score: int) -> int: ...
     @typing.overload
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]: ...
+
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]:
         if mate_score is None:
             return None
@@ -755,6 +775,7 @@ class MateGivenType(Score):
     def score(self, *, mate_score: int) -> int: ...
     @typing.overload
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]: ...
+
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]:
         return mate_score
 
@@ -775,6 +796,7 @@ class MateGivenType(Score):
 
     def __str__(self) -> str:
         return "#+0"
+
 
 MateGiven = MateGivenType()
 
@@ -1135,11 +1157,17 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         """
 
     @typing.overload
-    async def analyse(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
+    async def analyse(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL,
+                      root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
+
     @typing.overload
-    async def analyse(self, board: chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
+    async def analyse(self, board: chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL,
+                      root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
+
     @typing.overload
-    async def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[List[InfoDict], InfoDict]: ...
+    async def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL,
+                      root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[List[InfoDict], InfoDict]: ...
+
     async def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[List[InfoDict], InfoDict]:
         """
         Analyses a position and returns a dictionary of
@@ -1740,6 +1768,7 @@ class UciProtocol(Protocol):
 
 UCI_REGEX = re.compile(r"^[a-h][1-8][a-h][1-8][pnbrqk]?|[PNBRQK]@[a-h][1-8]|0000\Z")
 
+
 def _parse_uci_info(arg: str, root_board: chess.Board, selector: Info = INFO_ALL) -> InfoDict:
     info: InfoDict = {}
     if not selector:
@@ -1832,6 +1861,7 @@ def _parse_uci_info(arg: str, root_board: chess.Board, selector: Info = INFO_ALL
 
     return info
 
+
 def _parse_uci_bestmove(board: chess.Board, args: str) -> BestMove:
     tokens = args.split()
 
@@ -1868,7 +1898,7 @@ def _chain_config(a: ConfigMapping, b: ConfigMapping) -> Iterator[Tuple[str, Con
 class UciOptionMap(MutableMapping[str, T]):
     """Dictionary with case-insensitive keys."""
 
-    def __init__(self, data: Optional[Union[Iterable[Tuple[str, T]]]] = None, **kwargs: T) -> None:
+    def __init__(self, data: Optional[Union[Iterable[Tuple[str, T]], "0"]] = None, **kwargs: T) -> None:
         self._store: Dict[str, Tuple[str, T]] = {}
         if data is None:
             data = {}
@@ -2781,11 +2811,17 @@ class SimpleEngine:
         return future.result()
 
     @typing.overload
-    def analyse(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
+    def analyse(self, board: chess.Board, limit: Limit, *, game: object = None, info: Info = INFO_ALL,
+                root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> InfoDict: ...
+
     @typing.overload
-    def analyse(self, board: chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
+    def analyse(self, board: chess.Board, limit: Limit, *, multipv: int, game: object = None, info: Info = INFO_ALL,
+                root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> List[InfoDict]: ...
+
     @typing.overload
-    def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[InfoDict, List[InfoDict]]: ...
+    def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL,
+                root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[InfoDict, List[InfoDict]]: ...
+
     def analyse(self, board: chess.Board, limit: Limit, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> Union[InfoDict, List[InfoDict]]:
         with self._not_shut_down():
             coro = asyncio.wait_for(
