@@ -24,6 +24,7 @@ except ModuleNotFoundError:
 
 
 class InteractiveViewer:
+    # __new__()메소드는 객체의 메모리를 할당해주는 역할을 한다.
     def __new__(cls, game):
         jupyter = True
         try:
@@ -37,6 +38,7 @@ class InteractiveViewer:
 
         return object.__new__(cls)
 
+    # 각 변수들을 __init__()메소드를 통해 초기화한다.
     def __init__(self, game):
         self.game = game
         self.__board = game.board()
@@ -53,6 +55,7 @@ class InteractiveViewer:
         self.__next_move += 1
         self.__board.push(move)
         self.show()
+#############
 
     def __prev_click(self, _):
         self.__board.pop()
