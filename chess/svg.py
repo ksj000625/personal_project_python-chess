@@ -17,8 +17,14 @@
 # Piece vector graphics are copyright (C) Colin M.L. Burnett
 # <https://en.wikipedia.org/wiki/User:Cburnett> and also licensed under the
 # GNU General Public License.
+""" 
+svg.py는 CHESS SVG를 표현하기 위한 XML 기반 마크업 언어를 파이선으로 작성할 수 있도록 함.
+(python xml 라이브러리에서 Element 클래스를 사용하여 생성할 수 있음.)
+SVG(Scalable Vector Graphics): 2차원 기반 벡터 그래픽스를 기술하기 위한 XML 기반 마크업 언어
+XML(Extensible Markup Language): HTML과 유사하지만 사용할 사전 정의된 태그가 없는 마크업 언어
 
-#test
+"""
+
 from __future__ import annotations
 
 import math
@@ -26,6 +32,7 @@ import xml.etree.ElementTree as ET
 
 import chess
 
+#복잡한 type annotation 추가시, 스탠다드 라이브러리의 typing 모듈 사용(type annotation: 함수 인자 type, 반환값 type 알 수 있음)
 from typing import Dict, Iterable, Optional, Tuple, Union
 from chess import Color, IntoSquareSet, Square
 
@@ -85,10 +92,11 @@ DEFAULT_COLORS = {
 }
 
 
+#class Arrow 화살표의 세부정보(시작점,끝점,색깔)
 class Arrow:
     """Details of an arrow to be drawn."""
 
-    tail: Square
+    tail: Square                     #__init__.py Square=int (type alias: 형의 별명 정의)
     """Start square of the arrow."""
 
     head: Square
@@ -96,12 +104,12 @@ class Arrow:
 
     color: str
     """Arrow color."""
-
+    #화살표의 시작점,끝점,색깔(기본값:초록) 초기화
     def __init__(self, tail: Square, head: Square, *, color: str = "green") -> None:
         self.tail = tail
         self.head = head
         self.color = color
-
+    #화살표의 세부정보 문자열로 반환 (색깔과 SQUARE_NAMES[self.tail: int] square 리턴)
     def pgn(self) -> str:
         """
         Returns the arrow in the format used by ``[%csl ...]`` and
@@ -119,16 +127,16 @@ class Arrow:
             color = "G"
 
         if self.tail == self.head:
-            return f"{color}{chess.SQUARE_NAMES[self.tail]}"
+            return f"{color}{chess.SQUARE_NAMES[self.tail]}"        
         else:
             return f"{color}{chess.SQUARE_NAMES[self.tail]}{chess.SQUARE_NAMES[self.head]}"
 
     def __str__(self) -> str:
         return self.pgn()
-
+    #SQUARES 생성됨 (SQUARE_NAMES[self.tail]의 값 대문자로 변환(.upper())
     def __repr__(self) -> str:
         return f"Arrow({chess.SQUARE_NAMES[self.tail].upper()}, {chess.SQUARE_NAMES[self.head].upper()}, color={self.color!r})"
-
+    #화살표 tail의 square index 값,head의 square index 값, 색깔 리턴 (parse_square:gets the square index for the given square *name*)
     @classmethod
     def from_pgn(cls, pgn: str) -> Arrow:
         """
@@ -141,7 +149,7 @@ class Arrow:
         """
         if pgn.startswith("G"):
             color = "green"
-            pgn = pgn[1:]
+            pgn = pgn[1:]        
         elif pgn.startswith("R"):
             color = "red"
             pgn = pgn[1:]
@@ -163,7 +171,7 @@ class SvgWrapper(str):
     def _repr_svg_(self) -> SvgWrapper:
         return self
 
-
+#def _svg: XML element인 svg return (<svg>attributes</svg>)
 def _svg(viewbox: int, size: Optional[int]) -> ET.Element:
     svg = ET.Element("svg", {
         "xmlns": "http://www.w3.org/2000/svg",
@@ -296,22 +304,22 @@ def board(board: Optional[chess.BaseBoard] = None, *,
     orientation ^= flipped
     margin = 15 if coordinates else 0
     svg = _svg(8 * SQUARE_SIZE + 2 * margin, size)
-
+    #svg 엘리먼트에 CSS stylesheet 생성
     if style:
         ET.SubElement(svg, "style").text = style
-
+    #pre엘리먼트에 board 생성
     if board:
         desc = ET.SubElement(svg, "desc")
         asciiboard = ET.SubElement(desc, "pre")
         asciiboard.text = str(board)
-
+    #defs 엘리먼트에 해당 piece의 PIECES={} 엘리먼트 생성
     defs = ET.SubElement(svg, "defs")
     if board:
         for piece_color in chess.COLORS:
             for piece_type in chess.PIECE_TYPES:
                 if board.pieces_mask(piece_type, piece_color):
                     defs.append(ET.fromstring(PIECES[chess.Piece(piece_type, piece_color).symbol()]))
-
+    #defs 엘리먼트에 XX CHECK_GRADIENT 하위 엘리먼트 생성
     squares = chess.SquareSet(squares) if squares else chess.SquareSet()
     if squares:
         defs.append(ET.fromstring(XX))
@@ -426,10 +434,11 @@ def board(board: Optional[chess.BaseBoard] = None, *,
             }))
 
     # Render arrows.
+    #화살표의 색깔,불투명도(opacity=1.0),방향 지정
     for arrow in arrows:
         try:
             tail, head, color = arrow.tail, arrow.head, arrow.color  # type: ignore
-        except AttributeError:
+        except AttributeError:  
             tail, head = arrow  # type: ignore
             color = "green"
 
@@ -437,7 +446,7 @@ def board(board: Optional[chess.BaseBoard] = None, *,
             color, opacity = _select_color(colors, " ".join(["arrow", color]))
         except KeyError:
             opacity = 1.0
-
+        #화살표 tail과 head square의 file과 rank index 값 반환 
         tail_file = chess.square_file(tail)
         tail_rank = chess.square_rank(tail)
         head_file = chess.square_file(head)
