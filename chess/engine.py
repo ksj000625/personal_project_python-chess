@@ -98,6 +98,7 @@ class EventLoopPolicy(asyncio.AbstractEventLoopPolicy):
     def __init__(self) -> None:
         self._local = self._Local()
 
+    # 이 클래스의 이벤트루프를 가져오는 메소드이다.
     def get_event_loop(self) -> asyncio.AbstractEventLoop:
         if self._local.loop is None and not self._local.set_called and threading.current_thread() is threading.main_thread():
             self.set_event_loop(self.new_event_loop())
@@ -105,6 +106,7 @@ class EventLoopPolicy(asyncio.AbstractEventLoopPolicy):
             raise RuntimeError(f"no current event loop in thread {threading.current_thread().name!r}")
         return self._local.loop
 
+    # 이 클래스의 이벤트루프(변수)를 설정(초기화)한다.
     def set_event_loop(self, loop: Optional[asyncio.AbstractEventLoop]) -> None:
         assert loop is None or isinstance(loop, asyncio.AbstractEventLoop)
         self._local.set_called = True
@@ -112,9 +114,11 @@ class EventLoopPolicy(asyncio.AbstractEventLoopPolicy):
         if self._local.watcher is not None:
             self._local.watcher.attach_loop(loop)
 
+    # 새로운 이벤트루프가 발생했을때 해당 이벤트루프를 반환한다.
     def new_event_loop(self) -> asyncio.AbstractEventLoop:
         return asyncio.ProactorEventLoop() if sys.platform == "win32" else asyncio.SelectorEventLoop()  # type: ignore
 
+    
     def get_child_watcher(self) -> asyncio.AbstractChildWatcher:
         if self._local.watcher is None:
             self._local.watcher = self._init_watcher()
