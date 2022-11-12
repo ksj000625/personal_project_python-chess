@@ -393,6 +393,7 @@ class Limit:
     *white_clock*과 *black_clock*은 그렇다면 갑작스러운 죽음이다.
     """
 
+    # __repr__은 객체의 출력될 수 있는 표현을 문자열의 형태로 반환한다.
     def __repr__(self) -> str:
         # Like default __repr__, but without None values.
         return "{}({})".format(
@@ -406,6 +407,8 @@ try:
     class InfoDict(typing.TypedDict, total=False):
         """
         Dictionary of aggregated information sent by the engine.
+        엔진에서 보낸 집계된 정보의 사전입니다.
+
 
         Commonly used keys are: ``score`` (a :class:`~chess.engine.PovScore`),
         ``pv`` (a list of :class:`~chess.Move` objects), ``depth``,
