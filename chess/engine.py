@@ -353,32 +353,44 @@ class Limit:
 
     time: Optional[float] = None
     """Search exactly *time* seconds."""
+    """정확히 *시간*초를 검색합니다."""
 
     depth: Optional[int] = None
     """Search *depth* ply only."""
+    """*깊이*만 검색합니다"""
 
     nodes: Optional[int] = None
     """Search only a limited number of *nodes*."""
+    """제한된 수의 *nodes*만 검색합니다."""
 
     mate: Optional[int] = None
     """Search for a mate in *mate* moves."""
+    """*mate* 이동에서 짝을 찾습니다."""
 
     white_clock: Optional[float] = None
     """Time in seconds remaining for White."""
+    """흰색에 대한 남은 시간(초)입니다."""
 
     black_clock: Optional[float] = None
     """Time in seconds remaining for Black."""
+    """검은색에 대한 남은 시간(초)입니다."""
 
     white_inc: Optional[float] = None
     """Fisher increment for White, in seconds."""
+    """화이트의 피셔 증가량(초)입니다."""
 
     black_inc: Optional[float] = None
     """Fisher increment for Black, in seconds."""
+    """검은색의 피셔 증가량(초)입니다."""
 
     remaining_moves: Optional[int] = None
     """
     Number of moves to the next time control. If this is not set, but
     *white_clock* and *black_clock* are, then it is sudden death.
+    """
+    """
+    다음 시간 제어로 이동하는 횟수입니다. 만약 이것이 설정되어 있지 않다면,
+    *white_clock*과 *black_clock*은 그렇다면 갑작스러운 죽음이다.
     """
 
     def __repr__(self) -> str:
