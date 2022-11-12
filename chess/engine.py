@@ -118,19 +118,21 @@ class EventLoopPolicy(asyncio.AbstractEventLoopPolicy):
     def new_event_loop(self) -> asyncio.AbstractEventLoop:
         return asyncio.ProactorEventLoop() if sys.platform == "win32" else asyncio.SelectorEventLoop()  # type: ignore
 
-    
+    # child watcher가 할당되어 있지 않다면, 할당해서 반환한다.
     def get_child_watcher(self) -> asyncio.AbstractChildWatcher:
         if self._local.watcher is None:
             self._local.watcher = self._init_watcher()
             self._local.watcher.attach_loop(self._local.loop)
         return self._local.watcher
 
+    # child watcher를 설정하거나 변경한다.
     def set_child_watcher(self, watcher: Optional[asyncio.AbstractChildWatcher]) -> None:
         assert watcher is None or isinstance(watcher, asyncio.AbstractChildWatcher)
         if self._local.watcher is not None:
             self._local.watcher.close()
         self._local.watcher = watcher
 
+    # 사용되고 있지 않으니 생략
     def _init_watcher(self) -> asyncio.AbstractChildWatcher:
         if sys.platform == "win32":
             raise NotImplementedError
@@ -187,6 +189,8 @@ class EventLoopPolicy(asyncio.AbstractEventLoopPolicy):
         LOGGER.debug("Using PollingChildWatcher")
         return PollingChildWatcher()
 
+#
+
 
 def run_in_background(coroutine: Callable[[concurrent.futures.Future[T]], Coroutine[Any, Any, None]], *, name: Optional[str] = None, debug: bool = False, _policy_lock: threading.Lock = threading.Lock()) -> T:
     """
@@ -198,6 +202,16 @@ def run_in_background(coroutine: Callable[[concurrent.futures.Future[T]], Corout
 
     Note: This installs a :class:`chess.engine.EventLoopPolicy` for the entire
     process.
+    """
+    """
+    백그라운드 스레드의 새 이벤트 루프에서 "coroutine(미래)"을 실행합니다.
+
+    *future*에서 차단하고 해결되는 즉시 결과를 반환합니다.
+    코루틴 및 나머지 모든 작업은 백그라운드에서 계속 실행됩니다.
+    완성될 때까지
+
+    참고: :class가 설치됩니다.엔진.전체 이벤트 루프 정책'
+    과정.
     """
     assert asyncio.iscoroutinefunction(coroutine)
 
@@ -220,10 +234,12 @@ def run_in_background(coroutine: Callable[[concurrent.futures.Future[T]], Corout
 
 class EngineError(RuntimeError):
     """Runtime error caused by a misbehaving engine or incorrect usage."""
+    """잘못된 엔진 작동 또는 잘못된 사용으로 인해 발생하는 런타임 오류입니다."""
 
 
 class EngineTerminatedError(EngineError):
     """The engine process exited unexpectedly."""
+    """엔진 프로세스가 예기치 않게 종료되었습니다."""
 
 
 class AnalysisComplete(Exception):
@@ -231,18 +247,25 @@ class AnalysisComplete(Exception):
     Raised when analysis is complete, all information has been consumed, but
     further information was requested.
     """
+    """
+    분석이 완료되면 모든 정보가 소비되었지만
+    추가 정보가 요청되었습니다.
+    """
 
 
 @dataclasses.dataclass(frozen=True)
 class Option:
     """Information about an available engine option."""
+    """사용 가능한 엔진 옵션에 대한 정보입니다."""
 
     name: str
     """The name of the option."""
+    """옵션의 이름"""
 
     type: str
     """
     The type of the option.
+    옵션의 타입이다.
 
     +--------+-----+------+------------------------------------------------+
     | type   | UCI | CECP | value                                          |
@@ -269,16 +292,21 @@ class Option:
 
     default: ConfigValue
     """The default value of the option."""
+    """옵션의 기본값"""
 
     min: Optional[int]
     """The minimum integer value of a *spin* option."""
+    """*spin* 옵션의 최소 int 값"""
 
     max: Optional[int]
     """The maximum integer value of a *spin* option."""
+    """*spin* 옵션의 쵀대 int 값"""
 
     var: Optional[List[str]]
     """A list of allowed string values for a *combo* option."""
+    """*combo* 옵션에 허용되는 str 값 목록"""
 
+    # 옵션의 타입 종류에 따라서 해당하는 value를 반환한다.
     def parse(self, value: ConfigValue) -> ConfigValue:
         if self.type == "check":
             return value and value != "false"
@@ -308,17 +336,20 @@ class Option:
         else:
             raise EngineError(f"unknown option type: {self.type!r}")
 
+    # 옵션의 이름이 자동 관리되는 옵션에 들어가있는지 여부를 boolean 형태로 반환한다.
     def is_managed(self) -> bool:
         """
         Some options are managed automatically: ``UCI_Chess960``,
         ``UCI_Variant``, ``MultiPV``, ``Ponder``.
         """
+        # 자동 관리되는 일부 옵션 ↑
         return self.name.lower() in MANAGED_OPTIONS
 
 
 @dataclasses.dataclass
 class Limit:
     """Search-termination condition."""
+    """검색 종료 조건."""
 
     time: Optional[float] = None
     """Search exactly *time* seconds."""
