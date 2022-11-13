@@ -447,9 +447,11 @@ class PlayResult:
 
     move: Optional[chess.Move]
     """The best move according to the engine, or ``None``."""
+    """엔진에 따른 최선의 조치, 또는 "None"이다"""
 
     ponder: Optional[chess.Move]
     """The response that the engine expects after *move*, or ``None``."""
+    """엔진이 *이동* 또는 "None" 후에 기대하는 반응."""
 
     info: InfoDict
     """
@@ -457,13 +459,21 @@ class PlayResult:
     sent by the engine, if selected with the *info* argument of
     :func:`~chess.engine.Protocol.play()`.
     """
+    """
+    extra:class:'information <ches.engine>의 사전.인포딕트>'
+    *info* 인수와 함께 선택된 경우 엔진에서 전송됨
+    :func:'~func.engine.protocol.play().tv.
+    """
 
     draw_offered: bool
     """Whether the engine offered a draw before moving."""
+    """엔진이 움직이기 전에 무승부를 제공했는지 여부."""
 
     resigned: bool
     """Whether the engine resigned."""
+    """엔진이 꺼졌는지 여부."""
 
+    # PlayResult 클래스 변수 초기화하는 __init__메소드
     def __init__(self,
                  move: Optional[chess.Move],
                  ponder: Optional[chess.Move],
@@ -485,6 +495,7 @@ class PlayResult:
 
 class Info(enum.IntFlag):
     """Used to filter information sent by the chess engine."""
+    """체스 엔진에서 보낸 정보를 필터링하는 데 사용된다."""
     NONE = 0
     BASIC = 1
     SCORE = 2
@@ -493,7 +504,7 @@ class Info(enum.IntFlag):
     CURRLINE = 16
     ALL = BASIC | SCORE | PV | REFUTATION | CURRLINE
 
-
+# Info 클래스의 변수들을 밖에서 쓰기 위해 밖에서 선언 및 초기화
 INFO_NONE = Info.NONE
 INFO_BASIC = Info.BASIC
 INFO_SCORE = Info.SCORE
