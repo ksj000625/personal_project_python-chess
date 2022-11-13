@@ -51,11 +51,16 @@ except ImportError:
     _TrueLiteral = bool  # type: ignore
 
 
+# logger 생성
 LOGGER = logging.getLogger(__name__)
 
 
 # Reference of Numeric Annotation Glyphs (NAGs):
 # https://en.wikipedia.org/wiki/Numeric_Annotation_Glyphs
+
+# NAG(Numeric Annotation Glyphs)
+# 체스 게임에 주석을 추가하는 데 사용됨
+# 언어 독립적인 방식으로 간단한 주석을 나타내기 위해 존재
 
 NAG_NULL = 0
 
