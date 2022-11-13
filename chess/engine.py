@@ -522,6 +522,7 @@ class PovScore:
 
     turn: Color
     """The point of view (``chess.WHITE`` or ``chess.BLACK``)."""
+    """white 인지 black 인지 여부"""
 
     def __init__(self, relative: Score, turn: Color) -> None:
         self.relative = relative
@@ -529,18 +530,22 @@ class PovScore:
 
     def white(self) -> Score:
         """Gets the score from White's point of view."""
+        """white의 관점에서의 스코어를 반환"""
         return self.pov(chess.WHITE)
 
     def black(self) -> Score:
         """Gets the score from Black's point of view."""
+        """black의 관점에서의 스코어를 반환"""
         return self.pov(chess.BLACK)
 
     def pov(self, color: Color) -> Score:
         """Gets the score from the point of view of the given *color*."""
+        """지정된 *색*의 관점에서 점수를 얻습니다."""
         return self.relative if self.turn == color else -self.relative
 
     def is_mate(self) -> bool:
         """Tests if this is a mate score."""
+        """이 점수가 mate점수인지 테스트합니다."""
         return self.relative.is_mate()
 
     def wdl(self, *, model: _WdlModel = "sf", ply: int = 30) -> PovWdl:
@@ -560,12 +565,15 @@ class PovScore:
 class Score(abc.ABC):
     """
     Evaluation of a position.
+    포지션에 대한 평가.
 
     The score can be :class:`~chess.engine.Cp` (centi-pawns),
     :class:`~chess.engine.Mate` or :py:data:`~chess.engine.MateGiven`.
     A positive value indicates an advantage.
+    양의 값은 이점을 나타낸다.
 
     There is a total order defined on centi-pawn and mate scores.
+    centi-pawn과 mate 점수에 정의된 총 순서가 있다.
 
     >>> from chess.engine import Cp, Mate, MateGiven
     >>>
@@ -573,6 +581,7 @@ class Score(abc.ABC):
     True
 
     Scores can be negated to change the point of view:
+    관점을 바꾸기 위해 점수가 음수로 지정될 수 있음
 
     >>> -Cp(20)
     Cp(-20)
@@ -593,9 +602,11 @@ class Score(abc.ABC):
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]:
         """
         Returns the centi-pawn score as an integer or ``None``.
+        centi-pawn 점수를 정수 혹은 "None" 으로 반환한다.
 
         You can optionally pass a large value to convert mate scores to
         centi-pawn scores.
+        선택적으로 큰 값을 전달하여 짝 점수를 센티펀 점수로 변환할 수 있습니다.
 
         >>> Cp(-300).score()
         -300
@@ -610,6 +621,7 @@ class Score(abc.ABC):
         """
         Returns the number of plies to mate, negative if we are getting
         mated, or ``None``.
+        메이트할 플라이 수를 반환하고 메이트할 경우 음수 또는 "없음"을 반환합니다.
 
         .. warning::
             This conflates ``Mate(0)`` (we lost) and ``MateGiven``
@@ -618,6 +630,7 @@ class Score(abc.ABC):
 
     def is_mate(self) -> bool:
         """Tests if this is a mate score."""
+        """mate 점수인지 확인한다."""
         return self.mate() is not None
 
     @abc.abstractmethod
@@ -625,6 +638,7 @@ class Score(abc.ABC):
         """
         Returns statistics for the expected outcome of this game, based on
         a *model*, given that this score is reached at *ply*.
+        이 점수가 *ply*에서 도달한 경우 *model*을 기준으로 이 게임의 예상 결과에 대한 통계를 반환합니다.
 
         Scores have a total order, but it makes little sense to compute
         the difference between two scores. For example, going from
@@ -632,6 +646,9 @@ class Score(abc.ABC):
         from ``Cp(+300)`` to ``Cp(+500)``. It is better to compute differences
         of the expectation values for the outcome of the game (based on winning
         chances and drawing chances).
+        코어는 총 순서를 가지고 있지만, 두 점수 사이의 차이를 계산하는 것은 거의 의미가 없다.
+        예를 들어 ''Cp(-100)''에서 ''Cp(+100)''로 가는 것이 ''Cp(+300)''에서 ''Cp(+500)''로 가는 것보다 훨씬 중요하다.
+        경기 결과에 대한 기대치 차이를 계산하는 것이 좋다(승리와 추첨 찬스를 기준으로).
 
         >>> Cp(100).wdl().expectation() - Cp(-100).wdl().expectation()  # doctest: +ELLIPSIS
         0.379...
@@ -664,6 +681,7 @@ class Score(abc.ABC):
     def __abs__(self) -> Score:
         ...
 
+    # score에 대한 정보들을 tuple 형태로 묶어서 반환한다.
     def _score_tuple(self) -> Tuple[bool, bool, bool, int, Optional[int]]:
         mate = self.mate()
         return (
@@ -704,7 +722,7 @@ class Score(abc.ABC):
         else:
             return NotImplemented
 
-
+# stockfish 15 에서 승률 반환
 def _sf15_wins(cp: int, *, ply: int) -> int:
     # https://github.com/official-stockfish/Stockfish/blob/sf_15/src/uci.cpp#L200-L220
     m = min(240, max(ply, 0)) / 64
@@ -714,6 +732,7 @@ def _sf15_wins(cp: int, *, ply: int) -> int:
     return int(0.5 + 1000 / (1 + math.exp((a - x) / b)))
 
 
+# stockfish 14 에서 승률 반환
 def _sf14_wins(cp: int, *, ply: int) -> int:
     # https://github.com/official-stockfish/Stockfish/blob/sf_14/src/uci.cpp#L200-L220
     m = min(240, max(ply, 0)) / 64
@@ -723,6 +742,7 @@ def _sf14_wins(cp: int, *, ply: int) -> int:
     return int(0.5 + 1000 / (1 + math.exp((a - x) / b)))
 
 
+# stockfish 12 에서 승률 반환
 def _sf12_wins(cp: int, *, ply: int) -> int:
     # https://github.com/official-stockfish/Stockfish/blob/sf_12/src/uci.cpp#L198-L218
     m = min(240, max(ply, 0)) / 64
@@ -731,7 +751,7 @@ def _sf12_wins(cp: int, *, ply: int) -> int:
     x = min(1000, max(cp, -1000))
     return int(0.5 + 1000 / (1 + math.exp((a - x) / b)))
 
-
+# lichess_raw 에서 승률 반환(?)
 def _lichess_raw_wins(cp: int) -> int:
     return round(1000 / (1 + math.exp(-0.004 * cp)))
 
