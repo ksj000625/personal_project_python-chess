@@ -1349,14 +1349,14 @@ class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
 
         return await asyncio.get_running_loop().subprocess_exec(cls, *command, **popen_args)
 
-
+# enum 모듈을 사용하여 각각의 변수에 자동으로 열거형 정수값을 집어넣어 상태를 의미하는 변수로 활용
 class CommandState(enum.Enum):
     NEW = enum.auto()
     ACTIVE = enum.auto()
     CANCELLING = enum.auto()
     DONE = enum.auto()
 
-
+# 기본적인 명령을 이용에 에러처리를 주로 하는 메소드
 class BaseCommand(Generic[ProtocolT, T]):
     def __init__(self, engine: ProtocolT) -> None:
         self.state = CommandState.NEW
@@ -1364,6 +1364,7 @@ class BaseCommand(Generic[ProtocolT, T]):
         self.result: asyncio.Future[T] = asyncio.Future()
         self.finished: asyncio.Future[None] = asyncio.Future()
 
+    # 엔진이 종료되었는지에 대한 에러처리를 담당하는 메소드 / 현재 항태에 따라서 처리한다.
     def _engine_terminated(self, engine: ProtocolT, code: int) -> None:
         hint = ", binary not compatible with cpu?" if code in [-4, 0xc000001d] else ""
         exc = EngineTerminatedError(f"engine process died unexpectedly (exit code: {code}{hint})")
@@ -1374,6 +1375,7 @@ class BaseCommand(Generic[ProtocolT, T]):
         elif self.state == CommandState.NEW:
             self._handle_exception(engine, exc)
 
+    # 에러에 대한 처리를 해주는 메소드
     def _handle_exception(self, engine: ProtocolT, exc: Exception) -> None:
         if not self.result.done():
             self.result.set_exception(exc)
@@ -1388,6 +1390,7 @@ class BaseCommand(Generic[ProtocolT, T]):
         if not self.finished.done():
             self.finished.set_result(None)
 
+    # 현재 상태가 끝난 상태가 아닌 경우, 예외를 발생시키고 끝낸다.
     def set_finished(self) -> None:
         assert self.state in [CommandState.ACTIVE, CommandState.CANCELLING]
         if not self.result.done():
@@ -1395,12 +1398,14 @@ class BaseCommand(Generic[ProtocolT, T]):
         self.finished.set_result(None)
         self.state = CommandState.DONE
 
+    # 현재 상태가 취소되거나 끝난 상태가 아니고 활성화된 상태라면 취소시킨다.
     def _cancel(self, engine: ProtocolT) -> None:
         if self.state != CommandState.CANCELLING and self.state != CommandState.DONE:
             assert self.state == CommandState.ACTIVE
             self.state = CommandState.CANCELLING
             self.cancel(engine)
 
+    # 현재 상태를 생성 단계에서 활성화 상태로 바꾼다.
     def _start(self, engine: ProtocolT) -> None:
         assert self.state == CommandState.NEW
         self.state = CommandState.ACTIVE
@@ -1410,6 +1415,7 @@ class BaseCommand(Generic[ProtocolT, T]):
         except EngineError as err:
             self._handle_exception(engine, err)
 
+    # 활성화된 상태이거나 취소된 상태이면, 라인을 받고, 에러발생시 에러를 처리한다.
     def _line_received(self, engine: ProtocolT, line: str) -> None:
         assert self.state in [CommandState.ACTIVE, CommandState.CANCELLING]
         try:
@@ -1420,6 +1426,7 @@ class BaseCommand(Generic[ProtocolT, T]):
     def cancel(self, engine: ProtocolT) -> None:
         pass
 
+    # Protocol이 초기화되었는지 확인하고 초기화되어있지 않으면 예외를 발생시킨다.
     def check_initialized(self, engine: ProtocolT) -> None:
         if not engine.initialized:
             raise EngineError("tried to run command, but engine is not initialized")
@@ -1430,6 +1437,7 @@ class BaseCommand(Generic[ProtocolT, T]):
     def line_received(self, engine: ProtocolT, line: str) -> None:
         pass
 
+    # Protocol을 종료시키는 메소드
     def engine_terminated(self, engine: ProtocolT, exc: Exception) -> None:
         self._handle_exception(engine, exc)
 
@@ -1442,6 +1450,7 @@ class UciProtocol(Protocol):
     An implementation of the
     `Universal Chess Interface <https://www.chessprogramming.org/UCI>`_
     protocol.
+    UCI 프로토콜의 실행
     """
 
     def __init__(self) -> None:
