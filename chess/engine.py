@@ -891,6 +891,7 @@ class PovWdl:
     """
     Relative :class:`win/draw/loss statistics <chess.engine.Wdl>` and the point
     of view.
+    Relative: 클래스:'승/무/패 통계 <ches.engine.Wdl>'와 관점
 
     .. deprecated:: 1.2
         Behaves like a tuple
@@ -904,6 +905,7 @@ class PovWdl:
 
     turn: Color
     """The point of view (``chess.WHITE`` or ``chess.BLACK``)."""
+    """white의 관점인지 black의 관점인지 나타내는 변수"""
 
     def __init__(self, relative: Wdl, turn: Color) -> None:
         self.relative = relative
@@ -958,6 +960,7 @@ class PovWdl:
 @dataclasses.dataclass
 class Wdl:
     """Win/draw/loss statistics."""
+    """승/무/패 통계"""
 
     wins: int
     """The number of wins."""
@@ -975,14 +978,17 @@ class Wdl:
         """
         return self.wins + self.draws + self.losses
 
+    # 승률 계산
     def winning_chance(self) -> float:
         """Returns the relative frequency of wins."""
         return self.wins / self.total()
 
+    # 무승부 비율 계산
     def drawing_chance(self) -> float:
         """Returns the relative frequency of draws."""
         return self.draws / self.total()
 
+    # 진 비율 계산
     def losing_chance(self) -> float:
         """Returns the relative frequency of losses."""
         return self.losses / self.total()
@@ -991,6 +997,7 @@ class Wdl:
         """
         Returns the expectation value, where a win is valued 1, a draw is
         valued 0.5, and a loss is valued 0.
+        기대 값을 반환합니다. 여기서 승리는 1로, 무승부는 0.5로, 손실은 0으로 평가됩니다.
         """
         return (self.wins + 0.5 * self.draws) / self.total()
 
