@@ -23,6 +23,7 @@ svg.py는 CHESS SVG를 표현하기 위한 XML 기반 마크업 언어를 파이
 SVG(Scalable Vector Graphics): 2차원 기반 벡터 그래픽스를 기술하기 위한 XML 기반 마크업 언어
 XML(Extensible Markup Language): HTML과 유사하지만 사용할 사전 정의된 태그가 없는 마크업 언어
 
+SVG Tiny 1.2 이미지를 렌더링합니다 (주로 IPython / Jupyter 노트북 통합 용)
 """
 
 from __future__ import annotations
@@ -225,7 +226,7 @@ def _coord(text: str, x: int, y: int, width: int, height: int, horizontal: bool,
     t.append(ET.fromstring(COORDS[text]))
     return t
 
-
+#chess.piece 주어진 함수를 SVG 이미지로 표현하는 함수
 def piece(piece: chess.Piece, size: Optional[int] = None) -> str:
     """
     Renders the given :class:`chess.Piece` as an SVG image.
@@ -242,7 +243,7 @@ def piece(piece: chess.Piece, size: Optional[int] = None) -> str:
     svg.append(ET.fromstring(PIECES[piece.symbol()]))
     return SvgWrapper(ET.tostring(svg).decode("utf-8"))
 
-
+#pieces와 선택된 squares로 이루어진 SVG이미지 보드를 제공해주는 함수
 def board(board: Optional[chess.BaseBoard] = None, *,
           orientation: Color = chess.WHITE,
           lastmove: Optional[chess.Move] = None,
@@ -256,31 +257,21 @@ def board(board: Optional[chess.BaseBoard] = None, *,
           flipped: bool = False,
           style: Optional[str] = None) -> str:
     """
-    Renders a board with pieces and/or selected squares as an SVG image.
-
-    :param board: A :class:`chess.BaseBoard` for a chessboard with pieces, or
-        ``None`` (the default) for a chessboard without pieces.
-    :param orientation: The point of view, defaulting to ``chess.WHITE``.
-    :param lastmove: A :class:`chess.Move` to be highlighted.
-    :param check: A square to be marked indicating a check.
-    :param arrows: A list of :class:`~chess.svg.Arrow` objects, like
-        ``[chess.svg.Arrow(chess.E2, chess.E4)]``, or a list of tuples, like
-        ``[(chess.E2, chess.E4)]``. An arrow from a square pointing to the same
-        square is drawn as a circle, like ``[(chess.E2, chess.E2)]``.
-    :param fill: A dictionary mapping squares to a colors that they should be
-        filled with.
-    :param squares: A :class:`chess.SquareSet` with selected squares to mark
-        with an X.
-    :param size: The size of the image in pixels (e.g., ``400`` for a 400 by
-        400 board), or ``None`` (the default) for no size limit.
-    :param coordinates: Pass ``False`` to disable the coordinate margin.
-    :param colors: A dictionary to override default colors. Possible keys are
-        ``square light``, ``square dark``, ``square light lastmove``,
-        ``square dark lastmove``, ``margin``, ``coord``, ``arrow green``,
-        ``arrow blue``, ``arrow red``, and ``arrow yellow``. Values should look
-        like ``#ffce9e`` (opaque), or ``#15781B80`` (transparent).
-    :param flipped: Pass ``True`` to flip the board.
-    :param style: A CSS stylesheet to include in the SVG image.
+    board 함수 매개변수 설명: 
+    board- chess.BaseBoard(pieces로 이루어진 chessboard)이거나 None(default)
+    orientation- point of view로 기본값은 chess.white
+    lastmove- chess.Move
+    check- check를 나타낼 square
+    arrows- Arrow객체들의 list
+    fil- 색깔이 채워져야할 square를 mapping하는 dictionary
+    squares- chess.Squareset X로 표시할 square
+    size- 픽셀 단위의 이미지 크기
+    coordinates- False를 전달해 coordinate margin을 비활성화
+    colors-기본 색상을 재정의하는 dictionary
+    가능한 key는 square light, square dark, square light lastmove, square dark lastmove, margin, coord, arrow green, arrow blue, arrow red, and arrow yellow
+    value는  #ffce9e(불투명) 또는 #15781B80(투명)처럼 보여야 함.
+    flipped- 보드를 flip하기 위해 True를 pass함
+    style- SVG 이미지에 포함될 css stylesheet
 
     >>> import chess
     >>> import chess.svg
