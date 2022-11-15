@@ -1020,7 +1020,7 @@ class Wdl:
     def __neg__(self) -> Wdl:
         return Wdl(self.losses, self.draws, self.wins)
 
-
+# 인터넷 연결과 관련된 클래스
 class MockTransport(asyncio.SubprocessTransport, asyncio.WriteTransport):
     def __init__(self, protocol: Protocol) -> None:
         super().__init__()
@@ -1065,21 +1065,25 @@ class MockTransport(asyncio.SubprocessTransport, asyncio.WriteTransport):
     def get_returncode(self) -> Optional[int]:
         return None if self.expectations else 0
 
-
+# 게임 내부의 기능은 거의 안바뀐다고 판단하여 자세한 분석은 생략
 class Protocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
     """Protocol for communicating with a chess engine process."""
+    """체스 엔진 프로세스에 대해 소통하기 위한 프로토콜"""
 
     options: MutableMapping[str, Option]
     """Dictionary of available options."""
+    """가능한 옵션의 Dict"""
 
     id: Dict[str, str]
     """
     Dictionary of information about the engine. Common keys are ``name``
     and ``author``.
+    엔진에 대한 정보 Dict, 일반적인 키들은 "이름"과 "저자"
     """
 
     returncode: asyncio.Future[int]
     """Future: Exit code of the process."""
+    """미래 : 프로세스의 탈출 코드"""
 
     def __init__(self: ProtocolT) -> None:
         self.loop = asyncio.get_running_loop()
