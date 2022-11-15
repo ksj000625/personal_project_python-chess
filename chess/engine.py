@@ -768,6 +768,7 @@ class Cp(Score):
     def score(self, *, mate_score: Optional[int] = None) -> int:
         return self.cp
 
+    # win draw lose 를 게임 모델에 맞춰서 centi-pawn의 점수를 계산한다.
     def wdl(self, *, model: _WdlModel = "sf", ply: int = 30) -> Wdl:
         if model == "lichess":
             wins = _lichess_raw_wins(max(-1000, min(self.cp, 1000)))
@@ -822,6 +823,7 @@ class Mate(Score):
         else:
             return -mate_score - self.moves
 
+    # win draw lose 를 게임 모델에 맞춰서 mate의 점수를 계산한다.
     def wdl(self, *, model: _WdlModel = "sf", ply: int = 30) -> Wdl:
         if model == "lichess":
             cp = (21 - min(10, abs(self.moves))) * 100
@@ -848,6 +850,7 @@ class Mate(Score):
 
 class MateGivenType(Score):
     """Winning mate score, equivalent to ``-Mate(0)``."""
+    """우승 메이트 점수, "-메이트(0)"에 해당됩니다."""
 
     def mate(self) -> int:
         return 0
@@ -857,9 +860,11 @@ class MateGivenType(Score):
     @typing.overload
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]: ...
 
+    # mate의 점수를 반환한다.
     def score(self, *, mate_score: Optional[int] = None) -> Optional[int]:
         return mate_score
 
+    # win draw lose 의 점수를 Wdl을 호출시켜 반환한다.
     def wdl(self, *, model: _WdlModel = "sf", ply: int = 30) -> Wdl:
         return Wdl(1000, 0, 0)
 
