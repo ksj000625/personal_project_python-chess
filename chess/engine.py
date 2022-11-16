@@ -1465,6 +1465,7 @@ class UciProtocol(Protocol):
         self.may_ponderhit: Optional[chess.Board] = None
         self.ponderhit = False
 
+    # UCI프로토콜을 초기화하는 메소드
     async def initialize(self) -> None:
         class UciInitializeCommand(BaseCommand[UciProtocol, None]):
             def check_initialized(self, engine: UciProtocol) -> None:
