@@ -7,12 +7,14 @@ import chess.svg
 class WidgetError(Exception):
     """
     raised when ipywidgets is not installed
+    ipy위젯이 설치되어 있지 않은 경우 발생
     """
 
 
 class NotJupyter(Exception):
     """
     raised when InteractiveViewer is instantiated from a non jupyter shell
+    InteractiveViewer가 주피터가 아닌 셸에서 인스턴스화될 때 발생
     """
 
 
