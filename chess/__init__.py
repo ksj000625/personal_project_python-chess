@@ -24,20 +24,20 @@ Syzygy tablebase probing, and XBoard/UCI engine communication.
 # this is for test
 from __future__ import annotations
 
-__author__ = "Niklas Fiekas"
+__author__ = "Niklas Fiekas" #만든 사람 니클라스 피카스 씨
 
-__email__ = "niklas.fiekas@backscattering.de"
+__email__ = "niklas.fiekas@backscattering.de" #니클라스 피카스 씨 이메일
 
-__version__ = "1.9.3"
+__version__ = "1.9.3" #버전
 
-import collections
-import copy
-import dataclasses
-import enum
-import math
-import re
-import itertools
-import typing
+import collections #dict, list,set, tuple에 대한 대안을 제공하는 특수 컨테이너 데이터형을 제공
+import copy #복사에 관한 모듈
+import dataclasses #특수 메소드를 사용자 정의 클래스에 자동으로 추가하는 데코레이터와 함수를 제공
+import enum #연결된 기호 이름(멤버)의 집합, 멤버를 아이덴티티로 비교할 수 있다.
+import math #수학 함수 제공
+import re #정규표현식(match, search 등)
+import itertools #특정 배열에 대하여 순열이나 조합을 만들어야 할 때 사용
+import typing #다양한 타입 어노테이션을 위해 사용
 
 from typing import ClassVar, Callable, Counter, Dict, Generic, Hashable, Iterable, Iterator, List, Mapping, Optional, SupportsInt, Tuple, Type, TypeVar, Union
 
@@ -49,21 +49,26 @@ except ImportError:
     _EnPassantSpec = str  # type: ignore
 
 
-Color = bool
-COLORS = [WHITE, BLACK] = [True, False]
+Color = bool #색깔은 흑 or 백
+COLORS = [WHITE, BLACK] = [True, False] #True에 백, False에 흑
 COLOR_NAMES = ["black", "white"]
 
-PieceType = int
+#기물의 타입
+#1부터 7까지 차례대로 폰, 나이트, 비숍, 룩, 퀸, 킹
+PieceType = int 
 PIECE_TYPES = [PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING] = range(1, 7)
 PIECE_SYMBOLS = [None, "p", "n", "b", "r", "q", "k"]
 PIECE_NAMES = [None, "pawn", "knight", "bishop", "rook", "queen", "king"]
 
+#piece_type(int)을 받아서 피스심볼(str)로 반환
 def piece_symbol(piece_type: PieceType) -> str:
     return typing.cast(str, PIECE_SYMBOLS[piece_type])
 
+#piece_type(int)을 받아서 피스네임(str)로 반환
 def piece_name(piece_type: PieceType) -> str:
     return typing.cast(str, PIECE_NAMES[piece_type])
 
+#피스 심볼에 따른 유니코드(아이콘)
 UNICODE_PIECE_SYMBOLS = {
     "R": "♖", "r": "♜",
     "N": "♘", "n": "♞",
@@ -73,37 +78,50 @@ UNICODE_PIECE_SYMBOLS = {
     "P": "♙", "p": "♟",
 }
 
+#체스판의 세로 줄
 FILE_NAMES = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
+#체스판의 가로 줄
 RANK_NAMES = ["1", "2", "3", "4", "5", "6", "7", "8"]
 
+"""FEN = 포사이스-에드워드 표기법 Forsyth-Edwards Notation
+   1. /로 행을 구분 기물은 알파벳(심볼)로 표기 기물이 없는 칸은 기물과 기물 사이의 숫자로 표기
+   2. w는 백의 차례 b는 흑의 차례
+   3. K와k는 킹사이드 캐슬링 가능성 Q와 q는 퀸 사이드 캐슬링 가능성 -는 캐슬링 불가능
+   4. '앙파상' 가능한 칸
+   5. 하프무브, 마지막 폰 움직임 또는 기물 포획 이후 몇 수가 지났는지, 100이 되면 무승부
+   6. 풀무브, 이전까지 둔 수, 흑이 둘 때마다 1씩 증가
+   """
+#스타팅 포지션 FEN표기법
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 """The FEN for the standard chess starting position."""
 
+#스타팅 포지션(체스판) FEN표기법 - 기물의 위치만 표시
 STARTING_BOARD_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 """The board part of the FEN for the standard chess starting position."""
 
-
+#게임상태를 나타내는 클래스
 class Status(enum.IntFlag):
-    VALID = 0
-    NO_WHITE_KING = 1 << 0
-    NO_BLACK_KING = 1 << 1
-    TOO_MANY_KINGS = 1 << 2
-    TOO_MANY_WHITE_PAWNS = 1 << 3
-    TOO_MANY_BLACK_PAWNS = 1 << 4
-    PAWNS_ON_BACKRANK = 1 << 5
-    TOO_MANY_WHITE_PIECES = 1 << 6
-    TOO_MANY_BLACK_PIECES = 1 << 7
-    BAD_CASTLING_RIGHTS = 1 << 8
-    INVALID_EP_SQUARE = 1 << 9
-    OPPOSITE_CHECK = 1 << 10
-    EMPTY = 1 << 11
-    RACE_CHECK = 1 << 12
-    RACE_OVER = 1 << 13
-    RACE_MATERIAL = 1 << 14
-    TOO_MANY_CHECKERS = 1 << 15
-    IMPOSSIBLE_CHECK = 1 << 16
+    VALID = 0 #0000
+    NO_WHITE_KING = 1 << 0 #0001
+    NO_BLACK_KING = 1 << 1 #0010
+    TOO_MANY_KINGS = 1 << 2 #0100
+    TOO_MANY_WHITE_PAWNS = 1 << 3 #1000
+    TOO_MANY_BLACK_PAWNS = 1 << 4 #0001 0000
+    PAWNS_ON_BACKRANK = 1 << 5 #0010 0000
+    TOO_MANY_WHITE_PIECES = 1 << 6 #0100 0000
+    TOO_MANY_BLACK_PIECES = 1 << 7 #1000 0000
+    BAD_CASTLING_RIGHTS = 1 << 8 # 0001 0000 0000
+    INVALID_EP_SQUARE = 1 << 9 #0010 0000 0000
+    OPPOSITE_CHECK = 1 << 10 #0100 0000 0000
+    EMPTY = 1 << 11 #1000 0000 0000
+    RACE_CHECK = 1 << 12 #0001 0000 0000 0000
+    RACE_OVER = 1 << 13 #0010 0000 0000 0000
+    RACE_MATERIAL = 1 << 14 #0100 0000 0000 0000
+    TOO_MANY_CHECKERS = 1 << 15 #1000 0000 0000 0000 0000
+    IMPOSSIBLE_CHECK = 1 << 16 #0001 0000 0000 0000 0000 0000
 
+#Status 클래스의 데이터를 저장
 STATUS_VALID = Status.VALID
 STATUS_NO_WHITE_KING = Status.NO_WHITE_KING
 STATUS_NO_BLACK_KING = Status.NO_BLACK_KING
@@ -123,7 +141,7 @@ STATUS_RACE_MATERIAL = Status.RACE_MATERIAL
 STATUS_TOO_MANY_CHECKERS = Status.TOO_MANY_CHECKERS
 STATUS_IMPOSSIBLE_CHECK = Status.IMPOSSIBLE_CHECK
 
-
+#
 class Termination(enum.Enum):
     """Enum with reasons for a game to be over."""
 
@@ -177,7 +195,7 @@ class IllegalMoveError(ValueError):
 class AmbiguousMoveError(ValueError):
     """Raised when the attempted move is ambiguous in the current position"""
 
-
+#체스판의 칸(좌표)
 Square = int
 SQUARES = [
     A1, B1, C1, D1, E1, F1, G1, H1,
@@ -190,8 +208,10 @@ SQUARES = [
     A8, B8, C8, D8, E8, F8, G8, H8,
 ] = range(64)
 
+#가로줄(랭크)와 세로줄(파일)을 더하여 칸의 이름을 저장
 SQUARE_NAMES = [f + r for r in RANK_NAMES for f in FILE_NAMES]
 
+#칸이 유효한지 확인
 def parse_square(name: str) -> Square:
     """
     Gets the square index for the given square *name*
@@ -201,35 +221,42 @@ def parse_square(name: str) -> Square:
     """
     return SQUARE_NAMES.index(name)
 
+#칸을 입력받아서 이름을 반환
 def square_name(square: Square) -> str:
     """Gets the name of the square, like ``a3``."""
     return SQUARE_NAMES[square]
 
+#파일번호와 랭크번호를 입력받아 칸을 반환
 def square(file_index: int, rank_index: int) -> Square:
     """Gets a square number by file and rank index."""
     return rank_index * 8 + file_index
 
+#칸을 입력받아 파일값을 반환
 def square_file(square: Square) -> int:
     """Gets the file index of the square where ``0`` is the a-file."""
     return square & 7
 
+#칸을 입력받아 랭크값을 반환
 def square_rank(square: Square) -> int:
     """Gets the rank index of the square where ``0`` is the first rank."""
     return square >> 3
 
+#칸 두개를 입력 받아 거리를 반환, 거리는 킹이 가는데 걸리는 횟수로 계산
 def square_distance(a: Square, b: Square) -> int:
     """
     Gets the distance (i.e., the number of king steps) from square *a* to *b*.
     """
     return max(abs(square_file(a) - square_file(b)), abs(square_rank(a) - square_rank(b)))
 
+#칸을 입력받아 대칭된 칸을 반환
 def square_mirror(square: Square) -> Square:
     """Mirrors the square vertically."""
     return square ^ 0x38
 
+#모든 칸 대칭
 SQUARES_180 = [square_mirror(sq) for sq in SQUARES]
 
-
+#비트로 나타낸 체스판
 Bitboard = int
 BB_EMPTY = 0
 BB_ALL = 0xffff_ffff_ffff_ffff
@@ -245,12 +272,17 @@ BB_SQUARES = [
     BB_A8, BB_B8, BB_C8, BB_D8, BB_E8, BB_F8, BB_G8, BB_H8,
 ] = [1 << sq for sq in SQUARES]
 
+#비트체스판의 꼭지점 네 칸
 BB_CORNERS = BB_A1 | BB_H1 | BB_A8 | BB_H8
+#비트체스판의 중앙 네 칸
 BB_CENTER = BB_D4 | BB_E4 | BB_D5 | BB_E5
 
+#체스판의 밝은 칸
 BB_LIGHT_SQUARES = 0x55aa_55aa_55aa_55aa
+#체스판의 어두운 칸
 BB_DARK_SQUARES = 0xaa55_aa55_aa55_aa55
 
+#파일 비트
 BB_FILES = [
     BB_FILE_A,
     BB_FILE_B,
@@ -262,6 +294,7 @@ BB_FILES = [
     BB_FILE_H,
 ] = [0x0101_0101_0101_0101 << i for i in range(8)]
 
+#랭크 비트
 BB_RANKS = [
     BB_RANK_1,
     BB_RANK_2,
