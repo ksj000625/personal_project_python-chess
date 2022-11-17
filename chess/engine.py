@@ -1450,7 +1450,7 @@ class UciProtocol(Protocol):
     An implementation of the
     `Universal Chess Interface <https://www.chessprogramming.org/UCI>`_
     protocol.
-    UCI 프로토콜의 실행
+    UCI 프로토콜(체스 엔진이 자동으로 게임을 하기 위한 개방형 통신 프로토콜)의 실행
     """
 
     def __init__(self) -> None:
@@ -1888,7 +1888,7 @@ class UciProtocol(Protocol):
 
 UCI_REGEX = re.compile(r"^[a-h][1-8][a-h][1-8][pnbrqk]?|[PNBRQK]@[a-h][1-8]|0000\Z")
 
-
+# uci 정보를 가져와서 반환하는 메소드
 def _parse_uci_info(arg: str, root_board: chess.Board, selector: Info = INFO_ALL) -> InfoDict:
     info: InfoDict = {}
     if not selector:
@@ -1981,7 +1981,7 @@ def _parse_uci_info(arg: str, root_board: chess.Board, selector: Info = INFO_ALL
 
     return info
 
-
+# uci 최선의 이동을 가져와서 반환하는 메소드
 def _parse_uci_bestmove(board: chess.Board, args: str) -> BestMove:
     tokens = args.split()
 
@@ -2006,7 +2006,7 @@ def _parse_uci_bestmove(board: chess.Board, args: str) -> BestMove:
 
     return BestMove(move, ponder)
 
-
+# 이름과 값을 기존에 저장이 되었는지 확인하고, Tuple의 형태로 반환한다.
 def _chain_config(a: ConfigMapping, b: ConfigMapping) -> Iterator[Tuple[str, ConfigValue]]:
     for name, value in a.items():
         yield name, value
@@ -2017,6 +2017,7 @@ def _chain_config(a: ConfigMapping, b: ConfigMapping) -> Iterator[Tuple[str, Con
 
 class UciOptionMap(MutableMapping[str, T]):
     """Dictionary with case-insensitive keys."""
+    """대소문자를 구분하지 않는 키가 있는 Dictionary."""
 
     def __init__(self, data: Optional[Union[Iterable[Tuple[str, T]], "0"]] = None, **kwargs: T) -> None:
         self._store: Dict[str, Tuple[str, T]] = {}
@@ -2070,6 +2071,8 @@ class XBoardProtocol(Protocol):
     """
     An implementation of the
     `XBoard protocol <http://hgm.nubati.net/CECP.html>`__ (CECP).
+    XBoard 프로토콜의 구현
+    개발자가 작성한 Doc에서도 자세한 언급이 없고, 통신 프로토콜이라 함부로 건드리면 안되는 부분이기에 거의 생략
     """
 
     def __init__(self) -> None:
@@ -2188,6 +2191,7 @@ class XBoardProtocol(Protocol):
         self._configure(options)
 
         # Set up starting position.
+        # 시작 위치를 설정합니다.
         root = board.root()
         new_options = "random" in options or "computer" in options
         new_game = self.first_game or self.game != game or new_options or root != self.board.root()
@@ -2216,6 +2220,7 @@ class XBoardProtocol(Protocol):
                 self.send_line(f"setboard {fen}")
 
         # Undo moves until common position.
+        # 공통 위치까지 움직임을 취소합니다.
         common_stack_len = 0
         if not new_game:
             for left, right in zip(self.board.move_stack, board.move_stack):
@@ -2234,6 +2239,7 @@ class XBoardProtocol(Protocol):
                 self.board.pop()
 
         # Play moves from board stack.
+        # 보드 스택에서 움직임이 실행됩니다.
         for move in board.move_stack[common_stack_len:]:
             if not move:
                 LOGGER.warning("Null move (in %s) may not be supported by all XBoard engines", self.board.fen())
@@ -2271,9 +2277,11 @@ class XBoardProtocol(Protocol):
                 self.pong_after_ponder: Optional[str] = None
 
                 # Set game, position and configure.
+                # 게임을 설정하고, 위치를 지정하고, 구성합니다.
                 engine._new(board, game, options)
 
                 # Limit or time control.
+                # 제한 또는 시간제어.
                 clock = limit.white_clock if board.turn else limit.black_clock
                 increment = limit.white_inc if board.turn else limit.black_inc
                 if limit.remaining_moves or clock is not None or increment is not None:
@@ -2304,6 +2312,7 @@ class XBoardProtocol(Protocol):
                     engine.send_line("draw")
 
                 # Start thinking.
+                # 생각하기 시작합니다.
                 engine.send_line("post" if info else "nopost")
                 engine.send_line("hard" if ponder else "easy")
                 engine.send_line("go")
@@ -2335,7 +2344,7 @@ class XBoardProtocol(Protocol):
                 elif line.startswith("#"):
                     pass
                 elif XBOARD_ERROR_REGEX.match(line):
-                    engine.first_game = True  # Board state might no longer be in sync
+                    engine.first_game = True  # Board state might no longer be in sync / 보드 상태가 더 이상 동기화되지 않을 수 있음
                     raise EngineError(line)
                 elif len(line.split()) >= 4 and line.lstrip()[0].isdigit():
                     self._post(engine, line)
@@ -2392,6 +2401,7 @@ class XBoardProtocol(Protocol):
 
             def engine_terminated(self, engine: XBoardProtocol, exc: Exception) -> None:
                 # Allow terminating engine while pondering.
+                # 고민하는 동안 엔진을 종료할 수 있습니다.
                 if not self.result.done():
                     super().engine_terminated(engine, exc)
 
@@ -2439,7 +2449,7 @@ class XBoardProtocol(Protocol):
                 elif line == self.final_pong:
                     self.end(engine)
                 elif XBOARD_ERROR_REGEX.match(line):
-                    engine.first_game = True  # Board state might no longer be in sync
+                    engine.first_game = True  # Board state might no longer be in sync / 보드 상태가 더 이상 동기화되지 않을 수 있음
                     raise EngineError(line)
                 else:
                     LOGGER.warning("%s: Unexpected engine output: %r", engine, line)
@@ -2579,6 +2589,7 @@ def _parse_xboard_post(line: str, root_board: chess.Board, selector: Info = INFO
     info: InfoDict = {}
 
     # Split leading integer tokens from pv.
+    # pv에서 선행 정수 토큰을 분할합니다.
     pv_tokens = line.split()
     integer_tokens = []
     while pv_tokens:
@@ -2593,6 +2604,7 @@ def _parse_xboard_post(line: str, root_board: chess.Board, selector: Info = INFO
         return info
 
     # Required integer tokens.
+    # 필수 정수 토큰들
     info["depth"] = integer_tokens.pop(0)
     cp = integer_tokens.pop(0)
     info["time"] = int(integer_tokens.pop(0)) / 100
@@ -2609,7 +2621,7 @@ def _parse_xboard_post(line: str, root_board: chess.Board, selector: Info = INFO
         score = Cp(cp)
     info["score"] = PovScore(score, root_board.turn)
 
-    # Optional integer tokens.
+    # Optional integer tokens. / 부가적인 정수 토큰들
     if integer_tokens:
         info["seldepth"] = integer_tokens.pop(0)
     if integer_tokens:
@@ -2617,12 +2629,14 @@ def _parse_xboard_post(line: str, root_board: chess.Board, selector: Info = INFO
 
     while len(integer_tokens) > 1:
         # Reserved for future extensions.
+        # 향후에 확장을 위한 것
         integer_tokens.pop(0)
 
     if integer_tokens:
         info["tbhits"] = integer_tokens.pop(0)
 
     # Principal variation.
+    # 주요 변동.
     pv = []
     board = root_board.copy(stack=False)
     for token in pv_tokens:
@@ -2646,9 +2660,11 @@ class BestMove:
 
     move: Optional[chess.Move]
     """The best move according to the engine, or ``None``."""
+    """엔진에 따른 최선의 움직임. 또는 'None' """
 
     ponder: Optional[chess.Move]
     """The response that the engine expects after *move*, or ``None``."""
+    """*이동* 또는 'None' 후에 엔진이 예상하는 반응."""
 
     def __init__(self, move: Optional[chess.Move], ponder: Optional[chess.Move]):
         self.move = move
@@ -2662,17 +2678,23 @@ class BestMove:
 class AnalysisResult:
     """
     Handle to ongoing engine analysis.
+    진행중인 엔진 분석을 처리한다.
     Returned by :func:`chess.engine.Protocol.analysis()`.
 
     Can be used to asynchronously iterate over information sent by the engine.
+    앤진에서 보낸 정보에 대해 비동기식으로 반복하는데 사용할 수 있다.
 
     Automatically stops the analysis when used as a context manager.
+    컨텍스트 관리자로 사용할 때 분석을 자동으로 중지한다.
     """
 
     multipv: List[chess.engine.InfoDict]
     """
     A list of dictionaries with aggregated information sent by the engine.
     One item for each root move.
+
+    엔진에서 보낸 집계된 정보가 포함된 사전 목록,
+    각 root move마다 하나의 아이템이 있음.
     """
 
     def __init__(self, stop: Optional[Callable[[], None]] = None):
@@ -2684,7 +2706,7 @@ class AnalysisResult:
         self.multipv = [{}]
 
     def post(self, info: InfoDict) -> None:
-        # Empty dictionary reserved for kork.
+        # Empty dictionary reserved for kork. / kork용으로 예약된 빈 사전
         if not info:
             return
 
@@ -2714,37 +2736,47 @@ class AnalysisResult:
         """
         A dictionary of aggregated information sent by the engine. This is
         actually an alias for ``multipv[0]``.
+
+        엔진에서 보낸 집계 정보의 사전.
         """
         return self.multipv[0]
 
     def stop(self) -> None:
         """Stops the analysis as soon as possible."""
+        """가능한 빨리 분석을 중지하는 메소드"""
         if self._stop and not self._posted_kork:
             self._stop()
             self._stop = None
 
     async def wait(self) -> BestMove:
         """Waits until the analysis is finished."""
+        """분석이 끝날 때까지 기다리는 메소드"""
         return await self._finished
 
     async def get(self) -> InfoDict:
         """
         Waits for the next dictionary of information from the engine and
         returns it.
+        엔진에서 다음 정보 사전을 기다리고 반환한다.
 
         It might be more convenient to use ``async for info in analysis: ...``.
+        ``async for info in analysis: ...``를 사용하는 것이 더 편할 수 있음.
 
         :raises: :exc:`chess.engine.AnalysisComplete` if the analysis is
             complete (or has been stopped) and all information has been
             consumed. Use :func:`~chess.engine.AnalysisResult.next()` if you
             prefer to get ``None`` instead of an exception.
+
+            :exc:'''disclass.engine'''.분석이 완료되고(또는 중지된) 모든 정보가 소비된 경우 분석 완료. 
+            :func:`~ches.engine을 사용합니다.
+            예외 대신 "없음"을 얻고 싶다면 AnalysisResult.next()'.
         """
         if self._seen_kork:
             raise AnalysisComplete()
 
         info = await self._queue.get()
         if not info:
-            # Empty dictionary marks end.
+            # Empty dictionary marks end. / 빈 사전은 끝이라고 표시한다.
             self._seen_kork = True
             await self._finished
             raise AnalysisComplete()
@@ -2754,14 +2786,19 @@ class AnalysisResult:
     def would_block(self) -> bool:
         """
         Checks if calling :func:`~chess.engine.AnalysisResult.get()`,
+        :func:`~chess.engine.AnalysisResult.get()`를 불렀는지 체크한다.
         calling :func:`~chess.engine.AnalysisResult.next()`,
+        :func:`~chess.engine.AnalysisResult.next()`를 부른다.
         or advancing the iterator one step would require waiting for the
         engine.
+        또는 iterator를 한 단계 전진시키면 엔진을 기다려야 한다.
 
         These functions would return immediately if information is
         pending (queue is not
         :func:`empty <chess.engine.AnalysisResult.empty()>`) or if the search
         is finished.
+
+        정보가 보류 중인 경우 이러한 기능은 즉시 반환됩니다.
         """
         return not self._seen_kork and self._queue.empty()
 
@@ -2771,6 +2808,10 @@ class AnalysisResult:
 
         If the queue is empty, but the analysis is still ongoing, then further
         information can become available in the future.
+
+        현재 정보가 모두 사용되었는지 확인합니다.(dict가 비었는지(?))
+
+        대기열이 비어 있지만 분석이 계속 진행 중인 경우 나중에 추가 정보를 사용할 수 있습니다.
         """
         return self._seen_kork or self._queue.qsize() <= self._posted_kork
 
@@ -2799,18 +2840,23 @@ class AnalysisResult:
 async def popen_uci(command: Union[str, List[str]], *, setpgrp: bool = False, **popen_args: Any) -> Tuple[asyncio.SubprocessTransport, UciProtocol]:
     """
     Spawns and initializes a UCI engine.
+    UCI 엔진을 생성하고 초기화하는 메소드.
 
+    파라메터에 대한 설명
     :param command: Path of the engine executable, or a list including the
-        path and arguments.
+        path and arguments. / 엔진 실행 파일의 경로 또는 경로 및 인수를 포함하는 목록
     :param setpgrp: Open the engine process in a new process group. This will
         stop signals (such as keyboard interrupts) from propagating from the
         parent process. Defaults to ``False``.
+        새 프로세스 그룹에서 엔진 프로세스를 엽니다. 이렇게 하면 상위 프로세스에서 전송되는 신호(예: 키보드 인터럽트)가 중지됩니다.
+         기본값은 "False"입니다.
     :param popen_args: Additional arguments for
         `popen <https://docs.python.org/3/library/subprocess.html#popen-constructor>`_.
         Do not set ``stdin``, ``stdout``, ``bufsize`` or
         ``universal_newlines``.
 
     Returns a subprocess transport and engine protocol pair.
+    하위 프로세스 전송 및 엔진 프로토콜 쌍을 반환합니다.
     """
     transport, protocol = await UciProtocol.popen(command, setpgrp=setpgrp, **popen_args)
     try:
@@ -2824,18 +2870,23 @@ async def popen_uci(command: Union[str, List[str]], *, setpgrp: bool = False, **
 async def popen_xboard(command: Union[str, List[str]], *, setpgrp: bool = False, **popen_args: Any) -> Tuple[asyncio.SubprocessTransport, XBoardProtocol]:
     """
     Spawns and initializes an XBoard engine.
+    XBoard 엔진을 생성하고 초기화한다.
 
+    파라메터에 대한 설명
     :param command: Path of the engine executable, or a list including the
-        path and arguments.
+        path and arguments. / 엔진 실행 파일의 경로 또는 경로 및 인수를 포함하는 목록
     :param setpgrp: Open the engine process in a new process group. This will
         stop signals (such as keyboard interrupts) from propagating from the
         parent process. Defaults to ``False``.
+        새 프로세스 그룹에서 엔진 프로세스를 엽니다. 이렇게 하면 상위 프로세스에서 전송되는 신호(예: 키보드 인터럽트)가 중지됩니다.
+         기본값은 "False"입니다.
     :param popen_args: Additional arguments for
         `popen <https://docs.python.org/3/library/subprocess.html#popen-constructor>`_.
         Do not set ``stdin``, ``stdout``, ``bufsize`` or
         ``universal_newlines``.
 
     Returns a subprocess transport and engine protocol pair.
+    하위 프로세스 전송 및 엔진 프로토콜 쌍을 반환합니다.
     """
     transport, protocol = await XBoardProtocol.popen(command, setpgrp=setpgrp, **popen_args)
     try:
@@ -2855,16 +2906,22 @@ class SimpleEngine:
     Synchronous wrapper around a transport and engine protocol pair. Provides
     the same methods and attributes as :class:`chess.engine.Protocol`
     with blocking functions instead of coroutines.
+    전송 및 엔진 프로토콜 쌍 주위의 동기 wrapper.
+    코루틴 차단 기능과 더불어 :class:`chess.engine.Protocol`과 같은 메소드를 제공하고 기여한다.
 
     You may not concurrently modify objects passed to any of the methods. Other
     than that, :class:`~chess.engine.SimpleEngine` is thread-safe. When sending
     a new command to the engine, any previous running command will be cancelled
     as soon as possible.
+    메서드에 전달된 개체는 동시에 수정할 수 없다.
+    이 클래스는 thread-safe하다. 엔진에 새 명령을 전송하면 이전의 실행 명령이 가능한 한 빨리 취소됩니다.
 
     Methods will raise :class:`asyncio.TimeoutError` if an operation takes
     *timeout* seconds longer than expected (unless *timeout* is ``None``).
+    메소드는 작업이 예상보다 *타임아웃*초 더 오래 걸리는 경우:class:'asyncio.TimeoutError'를 발생시킨다(*타임아웃*이 "없음"인 경우 제외).
 
     Automatically closes the transport when used as a context manager.
+    컨텍스트 관리자로 사용할 때 전송을 자동으로 닫습니다.
     """
 
     def __init__(self, transport: asyncio.SubprocessTransport, protocol: Protocol, *, timeout: Optional[float] = 10.0) -> None:
