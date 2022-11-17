@@ -1552,6 +1552,7 @@ class UciProtocol(Protocol):
     def _isready(self) -> None:
         self.send_line("isready")
 
+    # 새 게임을 시작할 준비를 하는 메소드
     def _ucinewgame(self) -> None:
         self.send_line("ucinewgame")
         self.first_game = False
@@ -1561,6 +1562,7 @@ class UciProtocol(Protocol):
         """
         Switches debug mode of the engine on or off. This does not interrupt
         other ongoing operations.
+        엔진의 디버그 모드를 켜거나 끕니다. 이것은 진행 중인 다른 작업을 중단하지 않습니다.
         """
         if on:
             self.send_line("debug on")
@@ -1621,6 +1623,7 @@ class UciProtocol(Protocol):
 
     def _position(self, board: chess.Board) -> None:
         # Select UCI_Variant and UCI_Chess960.
+        # UCI_Variant 및 UCI_Ches960을 선택합니다.
         uci_variant = type(board).uci_variant
         if "UCI_Variant" in self.options:
             self._setoption("UCI_Variant", uci_variant)
@@ -1633,6 +1636,7 @@ class UciProtocol(Protocol):
             raise EngineError("engine does not support UCI_Chess960")
 
         # Send starting position.
+        # 시작 위치를 전송합니다.
         builder = ["position"]
         safe_history = all(board.move_stack)
         root = board.root() if safe_history else board
@@ -1644,6 +1648,7 @@ class UciProtocol(Protocol):
             builder.append(fen)
 
         # Send moves.
+        # 동작을 전송합니다.
         if not safe_history:
             LOGGER.warning("Not transmitting history with null moves to UCI engine")
         elif board.move_stack:
@@ -1692,6 +1697,7 @@ class UciProtocol(Protocol):
                 builder.extend(move.uci() for move in root_moves)
             else:
                 # Work around searchmoves followed by nothing.
+                # 검색 이동 후 아무것도 수행하지 않습니다.
                 builder.append("0000")
         self.send_line(" ".join(builder))
 
@@ -1699,6 +1705,7 @@ class UciProtocol(Protocol):
         same_game = not self.first_game and game == self.game and not options
         self.last_move = board.move_stack[-1] if (same_game and ponder and board.move_stack) else chess.Move.null()
 
+        # UCI를 플레이하는데에 필요한 처리들을 하는 메소드
         class UciPlayCommand(BaseCommand[UciProtocol, PlayResult]):
             def __init__(self, engine: UciProtocol):
                 super().__init__(engine)
@@ -1706,6 +1713,9 @@ class UciProtocol(Protocol):
                 # May ponderhit only in the same game and with unchanged target
                 # options. The managed options UCI_AnalyseMode, Ponder, and
                 # MultiPV never change between pondering play commands.
+                # 동일한 게임에서만 타격을 고려할 수 있으며 대상은 변경되지 않습니다.
+                # 옵션을 선택사항. 관리 옵션 UCI_AnalyzeMode, Ponder 및
+                # 멀티 PV는 숙고 재생 명령 간에 절대 바뀌지 않습니다.
                 engine.may_ponderhit = board if ponder and not engine.first_game and game == engine.game and not engine._changed_options(options) else None
 
             def start(self, engine: UciProtocol) -> None:
@@ -1755,6 +1765,7 @@ class UciProtocol(Protocol):
                 if not self.pondering:
                     self.info.update(_parse_uci_info(arg, engine.board, info))
 
+            # 최선의 움직임을 하는 메소드이다.
             def _bestmove(self, engine: UciProtocol, arg: str) -> None:
                 if self.pondering:
                     self.pondering = None
@@ -1769,6 +1780,7 @@ class UciProtocol(Protocol):
                         engine._position(self.pondering)
 
                         # Adjust clocks for pondering.
+                        # 생각할 수 있도록 시계를 조정합니다.
                         time_used = time.perf_counter() - self.start_time
                         ponder_limit = copy.copy(limit)
                         if ponder_limit.white_clock is not None:
@@ -1805,6 +1817,7 @@ class UciProtocol(Protocol):
 
         return await self.communicate(UciPlayCommand)
 
+    # UCI를 플레이하기 위해 공격(?)을 분석하는 메소드
     async def analysis(self, board: chess.Board, limit: Optional[Limit] = None, *, multipv: Optional[int] = None, game: object = None, info: Info = INFO_ALL, root_moves: Optional[Iterable[chess.Move]] = None, options: ConfigMapping = {}) -> AnalysisResult:
         class UciAnalysisCommand(BaseCommand[UciProtocol, AnalysisResult]):
             def start(self, engine: UciProtocol) -> None:
