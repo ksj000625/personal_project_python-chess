@@ -3024,6 +3024,7 @@ class SimpleEngine:
     def close(self) -> None:
         """
         Closes the transport and the background event loop as soon as possible.
+        가능한 한 빨리 전송 및 백그라운드 이벤트 루프를 닫습니다.
         """
         def _shutdown() -> None:
             self.transport.close()
@@ -3055,6 +3056,7 @@ class SimpleEngine:
     def popen_uci(cls, command: Union[str, List[str]], *, timeout: Optional[float] = 10.0, debug: bool = False, setpgrp: bool = False, **popen_args: Any) -> SimpleEngine:
         """
         Spawns and initializes a UCI engine.
+        UCI 앤진을 실행하고 초기화하는 메소드.
         Returns a :class:`~chess.engine.SimpleEngine` instance.
         """
         return cls.popen(UciProtocol, command, timeout=timeout, debug=debug, setpgrp=setpgrp, **popen_args)
@@ -3063,6 +3065,7 @@ class SimpleEngine:
     def popen_xboard(cls, command: Union[str, List[str]], *, timeout: Optional[float] = 10.0, debug: bool = False, setpgrp: bool = False, **popen_args: Any) -> SimpleEngine:
         """
         Spawns and initializes an XBoard engine.
+        XBoard 엔진을 실행하고 초기화하는 메소드.
         Returns a :class:`~chess.engine.SimpleEngine` instance.
         """
         return cls.popen(XBoardProtocol, command, timeout=timeout, debug=debug, setpgrp=setpgrp, **popen_args)
