@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import ctypes
 import ctypes.util
-import dataclasses
+import dataclasses  
 import fnmatch
 import logging
 import lzma
@@ -81,6 +81,7 @@ WE_FLAG = 1
 NS_FLAG = 2
 NW_SE_FLAG = 4
 
+#양 측 시작점을 제외한 체스판 각 칸의 좌표
 ITOSQ = [
     chess.H7, chess.G7, chess.F7, chess.E7,
     chess.H6, chess.G6, chess.F6, chess.E6,
@@ -120,6 +121,7 @@ def flip_ns(x: int) -> int:
 def flip_nw_se(x: int) -> int:
     return ((x & 7) << 3) | (x >> 3)
 
+#해당 칸에 기물이 없지 확인하는 메소드
 def idx_is_empty(x: int) -> int:
     return x == -1
 
@@ -419,6 +421,7 @@ def init_kkidx() -> Tuple[List[List[int]], List[int], List[int]]:
 KKIDX, WKSQ, BKSQ = init_kkidx()
 
 
+#앤드게임에서 게임이 끝나는 경우를 예측해주는 메소드들 ~1177
 def kxk_pctoindex(c: Request) -> int:
     BLOCK_Ax = 64
 
@@ -1180,6 +1183,7 @@ class EndgameKey:
         self.slice_n = slice_n
         self.pctoi = pctoi
 
+#체스 앤드게임에서 게임이 끝나는 경우의 리스트
 EGKEY = {
     "kqk": EndgameKey(MAX_KXK, 1, kxk_pctoindex),
     "krk": EndgameKey(MAX_KXK, 1, kxk_pctoindex),
@@ -1349,6 +1353,7 @@ EGKEY = {
 }
 
 
+#정렬하는 메소드
 def sortlists(ws: List[int], wp: List[int]) -> Tuple[List[int], List[int]]:
     z = sorted(zip(wp, ws), key=lambda x: x[0], reverse=True)
     wp2, ws2 = zip(*z)
@@ -1376,6 +1381,7 @@ iWMATEt = tb_WMATE | 4
 iBMATEt = tb_BMATE | 4
 
 
+#잡힌 기물을 없애는 메소드
 def removepiece(ys: List[int], yp: List[int], j: int) -> None:
     del ys[j]
     del yp[j]
@@ -1392,6 +1398,7 @@ def adjust_up(dist: int) -> int:
 
     return udist
 
+#게임의 결과를 알려주는 메소드
 def bestx(side: int, a: int, b: int) -> int:
     # 0 = selectfirst
     # 1 = selectlowest
@@ -1424,6 +1431,7 @@ def bestx(side: int, a: int, b: int) -> int:
 def unpackdist(d: int) -> Tuple[int, int]:
     return d >> PLYSHIFT, d & INFOMASK
 
+#death to mate, 즉 체크메이트가 발생하는 경우를 확인하는 메소드
 def dtm_unpack(stm: int, packed: int) -> int:
     p = packed
 
@@ -1526,7 +1534,7 @@ class ZipInfo:
     totalblocks: int
     blockindex: List[int]
 
-
+#엔드게임에서 기물이 7개 이하가 되었을때 이론적으로 승패를 판단하여 알려주는 클래스
 class PythonTablebase:
     """Provides access to Gaviota tablebases using pure Python code."""
 
@@ -1551,6 +1559,7 @@ class PythonTablebase:
         for tbfile in fnmatch.filter(os.listdir(directory), "*.gtb.cp4"):
             self.available_tables[os.path.basename(tbfile).replace(".gtb.cp4", "")] = os.path.join(directory, tbfile)
 
+    #체크메이트인지 조사(확인)해보는 메소드
     def probe_dtm(self, board: chess.Board) -> int:
         """
         Probes for depth to mate information.
@@ -1630,12 +1639,14 @@ class PythonTablebase:
             # Draw.
             return 0
 
+    #체크메이트를 반환하는 메소드
     def get_dtm(self, board: chess.Board, default: Optional[int] = None) -> Optional[int]:
         try:
             return self.probe_dtm(board)
         except KeyError:
             return default
 
+    #게임의 승패를 조사(확인)하는 메소드
     def probe_wdl(self, board: chess.Board) -> int:
         """
         Probes for win/draw/loss information.
@@ -1671,12 +1682,14 @@ class PythonTablebase:
         else:
             return -1
 
+    #게임의 결과를 반환하는 메소드
     def get_wdl(self, board: chess.Board, default: Optional[int] = None) -> Optional[int]:
         try:
             return self.probe_wdl(board)
         except KeyError:
             return default
 
+    #테이블베이스(가상 체스판) 설정하는 메소드
     def _setup_tablebase(self, req: Request) -> BinaryIO:
         white_letters = "".join(chess.piece_symbol(i) for i in req.white_types)
         black_letters = "".join(chess.piece_symbol(i) for i in req.black_types)
@@ -1703,6 +1716,7 @@ class PythonTablebase:
             raise MissingTableError(f"no gaviota table available for: {white_letters.upper()}v{black_letters.upper()}")
 
         return self._open_tablebase(req)
+
 
     def _open_tablebase(self, req: Request) -> BinaryIO:
         stream = self.streams.get(req.egkey)
@@ -1798,7 +1812,8 @@ class PythonTablebase:
                             break
 
         return dtm
-
+    
+    #엔드게임 테이블베이스의 블록넘버(칸의 수)를 반환
     def egtb_block_getnumber(self, req: Request, idx: int) -> int:
         maxindex = EGKEY[req.egkey].maxindex
 
@@ -1807,6 +1822,7 @@ class PythonTablebase:
 
         return req.side * blocks_per_side + block_in_side
 
+    #블록의 크기를 반환
     def egtb_block_getsize(self, req: Request, idx: int) -> int:
         blocksz = ENTRIES_PER_BLOCK
         maxindex = EGKEY[req.egkey].maxindex
@@ -1817,6 +1833,7 @@ class PythonTablebase:
             return maxindex - offset  # Last block size
         else:
             return blocksz  # Size of a normal block
+
 
     def _tb_probe(self, req: Request) -> int:
         stream = self._setup_tablebase(req)
@@ -1909,7 +1926,7 @@ class PythonTablebase:
     def __exit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         self.close()
 
-
+#open library인 libgtb를 통해 테이블베이스를 엑세스하는 클래스
 class NativeTablebase:
     """
     Provides access to Gaviota tablebases via the shared library libgtb.

@@ -27,13 +27,13 @@ from types import TracebackType
 from typing import Callable, Container, Iterator, List, NamedTuple, Optional, Type, Union
 
 
-PathLike = Union[str, bytes, os.PathLike]
+PathLike = Union[str, bytes, os.PathLike]   #set, bytes,os.PathLike를 묶어서 사용
 
 
 ENTRY_STRUCT = struct.Struct(">QHHI")
 
 
-POLYGLOT_RANDOM_ARRAY = [
+POLYGLOT_RANDOM_ARRAY = [ #ZobristHashing을 위한781개의 랜덤 좌표의 배열. 프로그램 초기화 시 체스판의 각 칸마다 하나의 좌표를 배정한다.
     0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,
     0x75834465489C0C89, 0x3290AC3A203001BF, 0x0FBBAD1F61042279, 0xE83A908FF2FB60CA,
     0x0D7E765D58755C10, 0x1A083822CEAFE02D, 0x9605D5F0E25EC3B0, 0xD021FF5CD13A2ED5,
@@ -233,6 +233,7 @@ POLYGLOT_RANDOM_ARRAY = [
 ]
 
 
+#위의 POLYGLOT_RANDOM_ARRAY 좌표를 활용해서 말이 움직일 수 있는지 확인하는 클래스
 class ZobristHasher:
     def __init__(self, array: List[int]) -> None:
         assert len(array) >= 781
@@ -248,6 +249,7 @@ class ZobristHasher:
 
         return zobrist_hash
 
+    # 킹과 룩의 위치를 확인해서 캐슬링이 가능한지 확인하는 함수
     def hash_castling(self, board: chess.Board) -> int:
         zobrist_hash = 0
 
@@ -263,6 +265,7 @@ class ZobristHasher:
 
         return zobrist_hash
 
+    # pawn으로 다른 말을 잡을 수 있는지 확인하는 메소드
     def hash_ep_square(self, board: chess.Board) -> int:
         # Hash in the en passant file.
         if board.ep_square:
@@ -278,9 +281,11 @@ class ZobristHasher:
                 return self.array[772 + chess.square_file(board.ep_square)]
         return 0
 
+    # USER의 차례인지 확인하고 알려주는 메소드
     def hash_turn(self, board: chess.Board) -> int:
         # Hash in the turn.
         return self.array[780] if board.turn == chess.WHITE else 0
+
 
     def __call__(self, board: chess.Board) -> int:
         return (self.hash_board(board) ^ self.hash_castling(board) ^
@@ -302,22 +307,22 @@ def zobrist_hash(board: chess.Board, *, _hasher: Callable[[chess.Board], int] = 
 class Entry(NamedTuple):
     """An entry from a Polyglot opening book."""
 
-    key: int
+    key: int    #zobrist hash의 위치
     """The Zobrist hash of the position."""
 
-    raw_move: int
+    raw_move: int   #체스 기물 이동의 이진 표현
     """
     The raw binary representation of the move. Use
     :data:`~chess.polyglot.Entry.move` instead.
     """
 
-    weight: int
+    weight: int     #가중치
     """An integer value that can be used as the weight for this entry."""
 
-    learn: int
+    learn: int      #추가 정보
     """Another integer value that can be used for extra information."""
 
-    move: chess.Move
+    move: chess.Move    #체스 기물 이동
     """The :class:`~chess.Move`."""
 
 
@@ -333,7 +338,7 @@ def _randint(rng: Optional[random.Random], a: int, b: int) -> int:
     return random.randint(a, b) if rng is None else rng.randint(a, b)
 
 
-class MemoryMappedReader:
+class MemoryMappedReader:   #시작 체스판을 메모리에 매핑하는 클래스
     """Maps a Polyglot opening book to memory."""
 
     def __init__(self, filename: PathLike) -> None:
@@ -353,15 +358,19 @@ class MemoryMappedReader:
         except AttributeError:
             pass
 
+    #MemoryMappedReader에 이 클래스를 리턴
     def __enter__(self) -> MemoryMappedReader:
         return self
 
+    #종료하는 메소드
     def __exit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         return self.close()
 
+    #클래스의 size를 리턴하는 메소드
     def __len__(self) -> int:
         return self.mmap.size() // ENTRY_STRUCT.size
 
+    #체스 게임이 시작되면 체스판과 기물들을 세팅하는 메소드
     def __getitem__(self, index: int) -> Entry:
         if index < 0:
             index = len(self) + index
@@ -410,9 +419,11 @@ class MemoryMappedReader:
 
         return lo
 
+    #찾는 항목이 맞는지 확인하는 메소드
     def __contains__(self, entry: Entry) -> bool:
         return any(current == entry for current in self.find_all(entry.key, minimum_weight=entry.weight))
 
+    #특정 위치를 찾아서 해당 항목 생성
     def find_all(self, board: Union[chess.Board, int], *, minimum_weight: int = 1, exclude_moves: Container[chess.Move] = []) -> Iterator[Entry]:
         """Seeks a specific position and yields corresponding entries."""
         try:
@@ -447,6 +458,7 @@ class MemoryMappedReader:
 
             yield entry
 
+    #주어진 위치나 zobrist hash에 대한 항목을 찾는 메소드
     def find(self, board: Union[chess.Board, int], *, minimum_weight: int = 1, exclude_moves: Container[chess.Move] = []) -> Entry:
         """
         Finds the main entry for the given position or Zobrist hash.
@@ -472,6 +484,7 @@ class MemoryMappedReader:
         except IndexError:
             return default
 
+    #특정 위치에서 임의의 항목을 균일하게 선택하는 메소드
     def choice(self, board: Union[chess.Board, int], *, minimum_weight: int = 1, exclude_moves: Container[chess.Move] = [], random: Optional[random.Random] = None) -> Entry:
         """
         Uniformly selects a random entry for the given position.
@@ -489,6 +502,7 @@ class MemoryMappedReader:
 
         return chosen_entry
 
+    #가중치에 따른 임의의 항목을 선택하는 메소드
     def weighted_choice(self, board: Union[chess.Board, int], *, exclude_moves: Container[chess.Move] = [], random: Optional[random.Random] = None) -> Entry:
         """
         Selects a random entry for the given position, distributed by the
@@ -510,6 +524,7 @@ class MemoryMappedReader:
 
         assert False
 
+    #종료하는 메소드
     def close(self) -> None:
         """Closes the reader."""
         self.mmap.close()
@@ -520,6 +535,7 @@ class MemoryMappedReader:
             pass
 
 
+#지정 경로에서 파일 판독기 생성
 def open_reader(path: PathLike) -> MemoryMappedReader:
     """
     Creates a reader for the file at the given path.
