@@ -287,12 +287,12 @@ class ZobristHasher:
         # Hash in the turn.
         return self.array[780] if board.turn == chess.WHITE else 0
 
-
+    #차례인 쪽에게 위의 결과를 리턴
     def __call__(self, board: chess.Board) -> int:
         return (self.hash_board(board) ^ self.hash_castling(board) ^
                 self.hash_ep_square(board) ^ self.hash_turn(board))
 
-#zobrist_hash값을 리턴하는 메소드
+#해당 위치의 zobrist_hash값을 리턴하는 메소드
 def zobrist_hash(board: chess.Board, *, _hasher: Callable[[chess.Board], int] = ZobristHasher(POLYGLOT_RANDOM_ARRAY)) -> int:
     """
     Calculates the Polyglot Zobrist hash of the position.
@@ -360,7 +360,7 @@ class MemoryMappedReader:   #시작 체스판을 메모리에 매핑하는 클�
         except AttributeError:
             pass
 
-    #MemoryMappedReader에 이 클래스를 리턴
+    #MemoryMappedReader에 매개변수를 리턴
     def __enter__(self) -> MemoryMappedReader:
         return self
 

@@ -1177,6 +1177,7 @@ def kpppk_pctoindex(c: Request) -> int:
     return ppp48_slice * BLOCK_A + wk * BLOCK_B + bk
 
 
+#게임이 끝나는 경우를 확인하는 클래스
 class EndgameKey:
     def __init__(self, maxindex: int, slice_n: int, pctoi: Callable[[Request], int]):
         self.maxindex = maxindex
@@ -1359,6 +1360,7 @@ def sortlists(ws: List[int], wp: List[int]) -> Tuple[List[int], List[int]]:
     wp2, ws2 = zip(*z)
     return list(ws2), list(wp2)
 
+#
 def egtb_block_unpack(side: int, n: int, bp: bytes) -> List[int]:
     return [dtm_unpack(side, i) for i in bp[:n]]
 
@@ -1913,11 +1915,13 @@ class PythonTablebase:
 
         return zipinfo
 
+    #테이블베이스 블록 사이즈를 압축한 크기를 리턴하는 메소드
     def egtb_block_getsize_zipped(self, egkey: str, block: int) -> int:
         i = self.zipinfo[egkey].blockindex[block]
         j = self.zipinfo[egkey].blockindex[block + 1]
         return j - i
 
+    #
     def egtb_block_park(self, egkey: str, block: int, stream: BinaryIO) -> int:
         i = self.zipinfo[egkey].blockindex[block]
         i += self.zipinfo[egkey].extraoffset
@@ -1968,6 +1972,7 @@ class NativeTablebase:
         self.paths.append(directory)
         self._tb_restart()
 
+    #테이블베이스 재시작
     def _tb_restart(self) -> None:
         self.c_paths = (ctypes.c_char_p * len(self.paths))()
         self.c_paths[:] = [path.encode("utf-8") for path in self.paths]
@@ -1998,24 +2003,29 @@ class NativeTablebase:
     def _tbcache_restart(self, cache_mem: int, wdl_fraction: int) -> None:
         self.libgtb.tbcache_restart(ctypes.c_size_t(cache_mem), ctypes.c_int(wdl_fraction))
 
+    #dtm을 알아보는 메소드
     def probe_dtm(self, board: chess.Board) -> int:
         return self._probe_hard(board)
 
+    #게임의 승패를 알아보는 메소드
     def probe_wdl(self, board: chess.Board) -> int:
         return self._probe_hard(board, wdl_only=True)
 
+    #probe_dtm 메소드를 사용하여 dtm을 리턴
     def get_dtm(self, board: chess.Board, default: Optional[int] = None) -> Optional[int]:
         try:
             return self.probe_dtm(board)
         except KeyError:
             return default
 
+    #probe_wdl 메소드를 사용하여 게임의 승패를 리턴
     def get_wdl(self, board: chess.Board, default: Optional[int] = None) -> Optional[int]:
         try:
             return self.probe_wdl(board)
         except KeyError:
             return default
 
+    # libgtb와 연결해 오류를 찾는 메소드
     def _probe_hard(self, board: chess.Board, wdl_only: bool = False) -> int:
         if board.is_insufficient_material():
             return 0
@@ -2093,7 +2103,7 @@ class NativeTablebase:
     def __exit__(self, exc_type: Optional[Type[BaseException]], exc_value: Optional[BaseException], traceback: Optional[TracebackType]) -> None:
         self.close()
 
-
+#기존 테이블 베이스를 libgtb와 연결하여 오픈
 def open_tablebase_native(directory: str, *, libgtb: Optional[str] = None, LibraryLoader: ctypes.LibraryLoader[ctypes.CDLL] = ctypes.cdll) -> NativeTablebase:
     """
     Opens a collection of tables for probing using libgtb.
@@ -2110,6 +2120,7 @@ def open_tablebase_native(directory: str, *, libgtb: Optional[str] = None, Libra
     return tables
 
 
+#테이블베이스 오픈
 def open_tablebase(directory: str, *, libgtb: Optional[str] = None, LibraryLoader: ctypes.LibraryLoader[ctypes.CDLL] = ctypes.cdll) -> Union[NativeTablebase, PythonTablebase]:
     """
     Opens a collection of tables for probing.
