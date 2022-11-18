@@ -2715,6 +2715,7 @@ class AnalysisResult:
 
         self._queue.put_nowait(info)
 
+# 큐
     def _kork(self) -> None:
         if not self._posted_kork:
             self._posted_kork = True
