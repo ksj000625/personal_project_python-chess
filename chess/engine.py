@@ -206,9 +206,8 @@ def run_in_background(coroutine: Callable[[concurrent.futures.Future[T]], Corout
     """
     백그라운드 스레드의 새 이벤트 루프에서 "coroutine(미래)"을 실행합니다.
 
-    *future*에서 차단하고 해결되는 즉시 결과를 반환합니다.
-    코루틴 및 나머지 모든 작업은 백그라운드에서 계속 실행됩니다.
-    완성될 때까지
+    **future*를 차단하고 결과가 해결되는 즉시 결과를 반환합니다. 
+    코루틴과 나머지 모든 태스크는 완료될 때까지 백그라운드에서 계속 실행됩니다.
 
     참고: :class가 설치됩니다.엔진.전체 이벤트 루프 정책'
     과정.
@@ -248,8 +247,7 @@ class AnalysisComplete(Exception):
     further information was requested.
     """
     """
-    분석이 완료되면 모든 정보가 소비되었지만
-    추가 정보가 요청되었습니다.
+    분석이 완료되면 제기되는 모든 정보가 소비되었지만 추가 정보가 요청되었습니다.
     """
 
 
