@@ -1717,7 +1717,7 @@ class PythonTablebase:
 
         return self._open_tablebase(req)
 
-
+    #테이블베이스를 여는 메소드
     def _open_tablebase(self, req: Request) -> BinaryIO:
         stream = self.streams.get(req.egkey)
 
@@ -1729,6 +1729,7 @@ class PythonTablebase:
 
         return stream
 
+    #테이블베이스를 닫는 메소드
     def close(self) -> None:
         """Closes all loaded tables."""
         self.available_tables.clear()
@@ -1742,6 +1743,7 @@ class PythonTablebase:
             _, stream = self.streams.popitem()
             stream.close()
 
+    #엔드게임에서의 dtm(death of mate, 몇 수만에 체크메이트를 하는지)을 리턴하는 메소드
     def egtb_get_dtm(self, req: Request) -> int:
         dtm = self._tb_probe(req)
 
@@ -1835,6 +1837,7 @@ class PythonTablebase:
             return blocksz  # Size of a normal block
 
 
+    #테이블베이스를 확인하고 dtm을 리턴하는 메소드
     def _tb_probe(self, req: Request) -> int:
         stream = self._setup_tablebase(req)
         idx = EGKEY[req.egkey].pctoi(req)
@@ -1888,6 +1891,7 @@ class PythonTablebase:
 
         return dtm
 
+    #엔드게임 테이블베이스 내의 값들을 묶어서 반환하는 메소드
     def egtb_loadindexes(self, egkey: str, stream: BinaryIO) -> ZipInfo:
         zipinfo = self.zipinfo.get(egkey)
 

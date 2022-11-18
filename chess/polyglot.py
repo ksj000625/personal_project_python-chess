@@ -239,6 +239,7 @@ class ZobristHasher:
         assert len(array) >= 781
         self.array = array
 
+    #체스판의 각 칸에 zobristhash값을 대입하는 메소드
     def hash_board(self, board: chess.BaseBoard) -> int:
         zobrist_hash = 0
 
@@ -291,7 +292,7 @@ class ZobristHasher:
         return (self.hash_board(board) ^ self.hash_castling(board) ^
                 self.hash_ep_square(board) ^ self.hash_turn(board))
 
-
+#zobrist_hash값을 리턴하는 메소드
 def zobrist_hash(board: chess.Board, *, _hasher: Callable[[chess.Board], int] = ZobristHasher(POLYGLOT_RANDOM_ARRAY)) -> int:
     """
     Calculates the Polyglot Zobrist hash of the position.
@@ -303,7 +304,7 @@ def zobrist_hash(board: chess.Board, *, _hasher: Callable[[chess.Board], int] = 
     """
     return _hasher(board)
 
-
+#체스 각 기물에 정보를 저장하는 클래스
 class Entry(NamedTuple):
     """An entry from a Polyglot opening book."""
 
@@ -325,7 +326,7 @@ class Entry(NamedTuple):
     move: chess.Move    #체스 기물 이동
     """The :class:`~chess.Move`."""
 
-
+#map을 비우는 클래스
 class _EmptyMmap(bytearray):
     def size(self) -> int:
         return 0
@@ -334,6 +335,7 @@ class _EmptyMmap(bytearray):
         pass
 
 
+#난수를 반환하는 메소드
 def _randint(rng: Optional[random.Random], a: int, b: int) -> int:
     return random.randint(a, b) if rng is None else rng.randint(a, b)
 
@@ -478,6 +480,7 @@ class MemoryMappedReader:   #시작 체스판을 메모리에 매핑하는 클�
         except ValueError:
             raise IndexError()
 
+    #find메소드의 결과를 반환하는 메소드
     def get(self, board: Union[chess.Board, int], default: Optional[Entry] = None, *, minimum_weight: int = 1, exclude_moves: Container[chess.Move] = []) -> Optional[Entry]:
         try:
             return self.find(board, minimum_weight=minimum_weight, exclude_moves=exclude_moves)
