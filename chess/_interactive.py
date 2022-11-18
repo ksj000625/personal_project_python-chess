@@ -7,12 +7,14 @@ import chess.svg
 class WidgetError(Exception):
     """
     raised when ipywidgets is not installed
+    ipy위젯이 설치되어 있지 않은 경우 발생
     """
 
 
 class NotJupyter(Exception):
     """
     raised when InteractiveViewer is instantiated from a non jupyter shell
+    InteractiveViewer가 주피터가 아닌 셸에서 인스턴스화될 때 발생
     """
 
 
@@ -50,23 +52,26 @@ class InteractiveViewer:
         self.__next_move = 0 if self.__moves else None
         self.__out = Output()
 
+    # 유닛을 다음 클릭한 지점으로 이동하고 보여준다.
     def __next_click(self, _):
         move = self.__moves[self.__next_move]
         self.__next_move += 1
         self.__board.push(move)
         self.show()
-#############
 
+    # 유닛을 이전 클릭한 지점에서 빼고 보여준다.
     def __prev_click(self, _):
         self.__board.pop()
         self.__next_move -= 1
         self.show()
 
+    # 보드를 초기화하고 보여준다.
     def __reset_click(self, _):
         self.__board.reset()
         self.__next_move = 0
         self.show()
 
+    # 흰색 유닛 선택한 것이 바뀌면 실행되는 메소드. 포커스된 유닛이 뭔지 보여준다.
     def __white_select_change(self, change):
         new = change["new"]
         if (isinstance(new, dict)) and ("index" in new):
@@ -74,6 +79,7 @@ class InteractiveViewer:
             self.__seek(target)
             self.show()
 
+    # 검은색 유닛 선택한 것이 바뀌면 실행되는 메소드. 포커스된 유닛이 뭔지 보여준다.
     def __black_select_change(self, change):
         new = change["new"]
         if (isinstance(new, dict)) and ("index" in new):
@@ -81,6 +87,7 @@ class InteractiveViewer:
             self.__seek(target)
             self.show()
 
+    # 공격 경로를 탐색한다?
     def __seek(self, target):
         while self.__next_move <= target:
             move = self.__moves[self.__next_move]
@@ -91,6 +98,7 @@ class InteractiveViewer:
             self.__board.pop()
             self.__next_move -= 1
 
+    # 상호작용 내역을 보여주는 메소드.
     def show(self):
         display(self.__out)
         next_move = Button(
@@ -179,6 +187,7 @@ class InteractiveViewer:
             clear_output(wait=True)
             display(grid_box)
 
+    # 조각 및/또는 선택한 사각형이 있는 보드를 SVG 이미지로 렌더링하고, HTML의 형태로 Layout맞춰서 반환한다.
     @property
     def svg(self) -> HTML:
         svg = chess.svg.board(
