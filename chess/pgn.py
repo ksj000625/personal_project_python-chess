@@ -16,19 +16,32 @@
 
 from __future__ import annotations
 
-import abc
-import enum
-import itertools
-import logging
-import re
-import typing
+import abc          # 추상 클래스를 만들기 위한 import
+import enum         # 서로 관련이 있는 여러 개의 상수 집합 정의 시 사용
+import itertools    # 더 복잡한 반복자를 생성하는 데 사용됨
+# infinite iterators, Combinatoric iterators, Termination iterators
+import logging      # logger 생성을 위한 모듈
+# level(중요도) : DEBUG, INFO, WARNING, ERROR, CRITICAL
+# 작동 구성 요소 : Logger, Handler, Filter, Formatter
+import re           # 정규 표현식을 사용할 때 사용
+# 정규 표현식 : 문자열을 패턴에 초점을 맞춰 특정한 형식으로 표현한 것
+# Ex) abbbbc --> [ab{4}c] 처럼 표현...
+# 데이터 전처리에 유용하게 사용됨
+# match(), fullmatch(), findall(), search() 등의 함수 제공
+import typing       # 다양한 타입 어노테이션을 위한 모듈
+# 타입 어노테이션 : 변수 또는 상수 선언 시 그 타입을 명시적으로 선언해 줌으로써
+# 어떤 타입의 값이 저장될 것인지를 컴파일러에 직접 알려준다.
 
+# python-chess
 import chess
 import chess.engine
 import chess.svg
 
+
+# 모듈 내에서 필요한 것들을 가져옴
 from typing import Any, Callable, Dict, Generic, Iterable, Iterator, List, Mapping, MutableMapping, Set, TextIO, Tuple, Type, TypeVar, Optional, Union
 from chess import Color, Square
+
 
 try:
     from typing import Literal
@@ -38,11 +51,16 @@ except ImportError:
     _TrueLiteral = bool  # type: ignore
 
 
+# logger 생성
 LOGGER = logging.getLogger(__name__)
 
 
 # Reference of Numeric Annotation Glyphs (NAGs):
 # https://en.wikipedia.org/wiki/Numeric_Annotation_Glyphs
+
+# NAG(Numeric Annotation Glyphs)
+# 체스 게임에 주석을 추가하는 데 사용됨
+# 언어 독립적인 방식으로 간단한 주석을 나타내기 위해 존재
 
 NAG_NULL = 0
 
@@ -143,6 +161,7 @@ ARROWS_REGEX = re.compile(r"""
     (?P<suffix>\s?)
     """, re.VERBOSE)
 
+
 def _condense_affix(infix: str) -> Callable[[typing.Match[str]], str]:
     def repl(match: typing.Match[str]) -> str:
         if infix:
@@ -157,6 +176,7 @@ TAG_ROSTER = ["Event", "Site", "Date", "Round", "White", "Black", "Result"]
 
 class SkipType(enum.Enum):
     SKIP = None
+
 
 SKIP = SkipType.SKIP
 
@@ -755,6 +775,7 @@ class ChildNode(GameNode):
 
 GameT = TypeVar("GameT", bound="Game")
 
+
 class Game(GameNode):
     """
     The root node of a game with extra information such as headers and the
@@ -883,6 +904,7 @@ class Game(GameNode):
 
 HeadersT = TypeVar("HeadersT", bound="Headers")
 
+
 class Headers(MutableMapping[str, str]):
     def __init__(self, data: Optional[Union[Mapping[str, str], Iterable[Tuple[str, str]]]] = None, **kwargs: str) -> None:
         self._tag_roster: Dict[str, str] = {}
@@ -979,6 +1001,7 @@ class Headers(MutableMapping[str, str]):
 
 
 MainlineMapT = TypeVar("MainlineMapT")
+
 
 class Mainline(Generic[MainlineMapT]):
     def __init__(self, start: GameNode, f: Callable[[ChildNode], MainlineMapT]) -> None:
@@ -1122,6 +1145,7 @@ class GameBuilder(BaseVisitor[GameT]):
     def __init__(self: GameBuilder[Game]) -> None: ...
     @typing.overload
     def __init__(self: GameBuilder[GameT], *, Game: Type[GameT]) -> None: ...
+
     def __init__(self, *, Game: Any = Game) -> None:
         self.Game = Game
 
@@ -1219,6 +1243,7 @@ class HeadersBuilder(BaseVisitor[HeadersT]):
     def __init__(self: HeadersBuilder[Headers]) -> None: ...
     @typing.overload
     def __init__(self: HeadersBuilder[HeadersT], *, Headers: Type[Headers]) -> None: ...
+
     def __init__(self, *, Headers: Any = Headers) -> None:
         self.Headers = Headers
 
@@ -1441,6 +1466,8 @@ class FileExporter(StringExporterMixin, BaseVisitor[int]):
 def read_game(handle: TextIO) -> Optional[Game]: ...
 @typing.overload
 def read_game(handle: TextIO, *, Visitor: Callable[[], BaseVisitor[ResultT]]) -> Optional[ResultT]: ...
+
+
 def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
     """
     Reads a game from a file opened in text mode.
