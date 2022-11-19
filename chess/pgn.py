@@ -62,6 +62,9 @@ LOGGER = logging.getLogger(__name__)
 # 체스 게임에 주석을 추가하는 데 사용됨
 # 언어 독립적인 방식으로 간단한 주석을 나타내기 위해 존재
 
+# PGN(Portable Game Notation)
+# 움직임 및 관련 데이터 모두를 기록하기 위한 표준 일반 텍스트 형식
+# 아래 숫자별 의미가 다름
 NAG_NULL = 0
 
 NAG_GOOD_MOVE = 1
@@ -111,10 +114,13 @@ NAG_BLACK_SEVERE_TIME_PRESSURE = 139
 NAG_NOVELTY = 146
 
 
-TAG_REGEX = re.compile(r"^\[([A-Za-z0-9][A-Za-z0-9_+#=:-]*)\s+\"([^\r]*)\"\]\s*$")
+# 정규 표현 패턴을 컴파일함 compile()
+TAG_REGEX = re.compile(
+    r"^\[([A-Za-z0-9][A-Za-z0-9_+#=:-]*)\s+\"([^\r]*)\"\]\s*$")
 
 TAG_NAME_REGEX = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_+#=:-]*\Z")
 
+# ??
 MOVETEXT_REGEX = re.compile(r"""
     (
         [NBKRQ]?[a-h]?[1-8]?[\-x]?[a-h][1-8](?:=?[nbrqkNBRQK])?
@@ -138,8 +144,11 @@ MOVETEXT_REGEX = re.compile(r"""
 SKIP_MOVETEXT_REGEX = re.compile(r""";|\{|\}""")
 
 
-CLOCK_REGEX = re.compile(r"""(?P<prefix>\s?)\[%clk\s(?P<hours>\d+):(?P<minutes>\d+):(?P<seconds>\d+(?:\.\d*)?)\](?P<suffix>\s?)""")
-EMT_REGEX = re.compile(r"""(?P<prefix>\s?)\[%emt\s(?P<hours>\d+):(?P<minutes>\d+):(?P<seconds>\d+(?:\.\d*)?)\](?P<suffix>\s?)""")
+# ??
+CLOCK_REGEX = re.compile(
+    r"""(?P<prefix>\s?)\[%clk\s(?P<hours>\d+):(?P<minutes>\d+):(?P<seconds>\d+(?:\.\d*)?)\](?P<suffix>\s?)""")
+EMT_REGEX = re.compile(
+    r"""(?P<prefix>\s?)\[%emt\s(?P<hours>\d+):(?P<minutes>\d+):(?P<seconds>\d+(?:\.\d*)?)\](?P<suffix>\s?)""")
 
 EVAL_REGEX = re.compile(r"""
     (?P<prefix>\s?)
@@ -162,6 +171,7 @@ ARROWS_REGEX = re.compile(r"""
     """, re.VERBOSE)
 
 
+# 파라메터 옆의 -> 부분은 주석 역할을 함
 def _condense_affix(infix: str) -> Callable[[typing.Match[str]], str]:
     def repl(match: typing.Match[str]) -> str:
         if infix:
@@ -169,8 +179,11 @@ def _condense_affix(infix: str) -> Callable[[typing.Match[str]], str]:
         else:
             return match.group("prefix") and match.group("suffix")
     return repl
+    # repl 결과 반환 후 다시 입력
 
 
+# A mapping of headers. Following 7 headers are provided.
+# PGN의 구성 요소
 TAG_ROSTER = ["Event", "Site", "Date", "Round", "White", "Black", "Result"]
 
 
@@ -189,8 +202,11 @@ class _AcceptFrame:
         self.state = "pre"
         self.node = node
         self.is_variation = is_variation
-        self.variations = iter(itertools.islice(node.parent.variations, 1, None) if sidelines else [])
+        self.variations = iter(itertools.islice(
+            node.parent.variations, 1, None) if sidelines else [])
         self.in_variation = False
+
+# GameNode
 
 
 class GameNode(abc.ABC):
@@ -205,16 +221,19 @@ class GameNode(abc.ABC):
 
     variations: List[ChildNode]
     """A list of child nodes."""
+    # childnode의 리스트
 
     comment: str
     """
     A comment that goes behind the move leading to this node. Comments
     that occur before any moves are assigned to the root node.
     """
+    # node를 움직인 후 뒤에 따라오는 comment
 
     starting_comment: str
     nags: Set[int]
 
+    # 초기화
     def __init__(self, *, comment: str = "") -> None:
         self.parent = None
         self.move = None
@@ -236,6 +255,10 @@ class GameNode(abc.ABC):
 
         It's a copy, so modifying the board will not alter the game.
         """
+        # 노드의 위치를 가진 보드를 반환받음
+        # 루트 노드 -> "FEN"헤더 테그가 설정되지 않는 한 위의 위치가
+        # 기본 시작 위치임
+        # 사본이므로 보드를 수정해도 게임을 변경시키지는 않음
 
     @abc.abstractmethod
     def ply(self) -> int:
@@ -247,13 +270,19 @@ class GameNode(abc.ABC):
         Usually this is equal to the number of parent nodes, but it may be
         more if the game was started from a custom position.
         """
+        # fullmove의 수와 위치 변화로 나타는 이 노드까지의 이동 횟수의 절반
+        # 을 반환
+        # 일반적으로 부모 노드 수와 동일
+        # 사용자 지정 시 더 많을 수 있음
 
     def turn(self) -> Color:
         """
         Gets the color to move at this node. See :data:`chess.Board.turn`.
         """
         return self.ply() % 2 == 0
+        # ply에서 가져온 값을 통해 Black, White color 결정
 
+    # root node 반환
     def root(self) -> GameNode:
         node = self
         while node.parent:
@@ -262,10 +291,13 @@ class GameNode(abc.ABC):
 
     def game(self) -> Game:
         """Gets the root node, i.e., the game."""
-        root = self.root()
+        root = self.root()  # root node 반환
+        # 예외 발생
+        # root node 가 없다면 예외 처리
         assert isinstance(root, Game), "GameNode not rooted in Game"
         return root
 
+    # 마지막 node 반환
     def end(self) -> GameNode:
         """Follows the main variation to the end and returns the last node."""
         node = self
@@ -275,10 +307,14 @@ class GameNode(abc.ABC):
 
         return node
 
+    # 현재 node가 마지막 node 인지 반환
     def is_end(self) -> bool:
         """Checks if this node is the last node in the current variation."""
         return not self.variations
 
+    # 현재 node가 시작 node 인지 반환
+    # 시작 코멘트를 가질 수 있음
+    # root node는 시작 주석이 없을 수 있음
     def starts_variation(self) -> bool:
         """
         Checks if this node starts a variation (and can thus have a starting
@@ -293,6 +329,7 @@ class GameNode(abc.ABC):
 
         return self.parent.variations[0] != self
 
+    # node가 mainline 위에 존재하는지 반환
     def is_mainline(self) -> bool:
         """Checks if the node is in the mainline of the game."""
         node = self
@@ -307,6 +344,8 @@ class GameNode(abc.ABC):
 
         return True
 
+    # 부모의 관점에서 this node가 첫번째 variation인지 확인
+    # root node는 mainline위에 존재
     def is_main_variation(self) -> bool:
         """
         Checks if this node is the first variation from the point of view of its
@@ -317,6 +356,7 @@ class GameNode(abc.ABC):
 
         return not self.parent.variations or self.parent.variations[0] == self
 
+    # typing.py의 Union class 활용
     def __getitem__(self, move: Union[int, chess.Move, GameNode]) -> ChildNode:
         try:
             return self.variations[move]  # type: ignore
@@ -327,6 +367,7 @@ class GameNode(abc.ABC):
 
         raise KeyError(move)
 
+    # typing.py의 Union class 활용
     def __contains__(self, move: Union[int, chess.Move, GameNode]) -> bool:
         try:
             self[move]
@@ -335,45 +376,65 @@ class GameNode(abc.ABC):
         else:
             return True
 
+    # typing.py의 Union class 활용
     def variation(self, move: Union[int, chess.Move, GameNode]) -> ChildNode:
         """
         Gets a child node by either the move or the variation index.
         """
         return self[move]
 
+    ###################
+    # typing 모듈의 Union은 여러 개의 타입이 허용될 수 있을 때 사용
+    ###################
+
+    # typing.py의 Union class 활용
+    # this node가 주어진 variation을 가지는지 반환
     def has_variation(self, move: Union[int, chess.Move, GameNode]) -> bool:
         """Checks if this node has the given variation."""
         return move in self
 
+    # typing.py의 Union class 활용
+    # 주어진 move를 main variation으로 올린다(promote, 승격...)
     def promote_to_main(self, move: Union[int, chess.Move, GameNode]) -> None:
         """Promotes the given *move* to the main variation."""
         variation = self[move]
         self.variations.remove(variation)
         self.variations.insert(0, variation)
 
+    # typing.py의 Union class 활용
+    # variation을 variation list의 하나 위로 옮김(이동)
     def promote(self, move: Union[int, chess.Move, GameNode]) -> None:
         """Moves a variation one up in the list of variations."""
         variation = self[move]
         i = self.variations.index(variation)
         if i > 0:
-            self.variations[i - 1], self.variations[i] = self.variations[i], self.variations[i - 1]
+            self.variations[i -
+                            1], self.variations[i] = self.variations[i], self.variations[i - 1]
 
+    # typing.py의 Union class 활용
+    # variation을 variation list의 하나 아래로 옮김(이동)
     def demote(self, move: Union[int, chess.Move, GameNode]) -> None:
         """Moves a variation one down in the list of variations."""
         variation = self[move]
         i = self.variations.index(variation)
         if i < len(self.variations) - 1:
-            self.variations[i + 1], self.variations[i] = self.variations[i], self.variations[i + 1]
+            self.variations[i +
+                            1], self.variations[i] = self.variations[i], self.variations[i + 1]
 
+    # typing.py의 Union class 활용
+    # variation 제거
     def remove_variation(self, move: Union[int, chess.Move, GameNode]) -> None:
         """Removes a variation."""
         self.variations.remove(self.variation(move))
 
+    # 주어진 attributes(속성)로 child node 생성
+    # 여기에서만 Childnode instance 생성
     def add_variation(self, move: chess.Move, *, comment: str = "", starting_comment: str = "", nags: Iterable[int] = []) -> ChildNode:
         """Creates a child node with the given attributes."""
         # Instanciate ChildNode only in this method.
         return ChildNode(self, move, comment=comment, starting_comment=starting_comment, nags=nags)
 
+    # 주어진 attributes로 child node를 만들고 main variation으로 promote
     def add_main_variation(self, move: chess.Move, *, comment: str = "", nags: Iterable[int] = []) -> ChildNode:
         """
         Creates a child node with the given attributes and promotes it to the
@@ -383,6 +444,8 @@ class GameNode(abc.ABC):
         self.variations.insert(0, self.variations.pop())
         return node
 
+    # this node 다음에 mainline의 첫 번째 노드 반환
+    # this node에 children이 없다면 None 반환
     def next(self) -> Optional[ChildNode]:
         """
         Returns the first node of the mainline after this node, or ``None`` if
@@ -390,14 +453,19 @@ class GameNode(abc.ABC):
         """
         return self.variations[0] if self.variations else None
 
+    # this node 뒤에서부터 mainline의 iterable 반환
+    # iterable : 한 번에 하나의 member를 반환 할 수 있는 객체
+    # iterator로 변환 후 사용됨
     def mainline(self) -> Mainline[ChildNode]:
         """Returns an iterable over the mainline starting after this node."""
         return Mainline(self, lambda node: node)
 
+    # this node 뒤에서부터 main moves의 iterable 반환
     def mainline_moves(self) -> Mainline[chess.Move]:
         """Returns an iterable over the main moves after this node."""
         return Mainline(self, lambda node: node.move)
 
+    # 주어진 list의 moves에 대해 child nodes의 순서를 만듦
     def add_line(self, moves: Iterable[chess.Move], *, comment: str = "", starting_comment: str = "", nags: Iterable[int] = []) -> GameNode:
         """
         Creates a sequence of child nodes for the given list of moves.
@@ -411,6 +479,7 @@ class GameNode(abc.ABC):
             starting_comment = ""
 
         # Merge comment and NAGs.
+        # comment와 NAGs를 합친다
         if node.comment:
             node.comment += " " + comment
         else:
@@ -420,12 +489,19 @@ class GameNode(abc.ABC):
 
         return node
 
+    #
+    # engine.py의 PovScore Class 이용
+    #
+    # eval : 매개변수를 문자열로 받아서 실행
+
+    # this node의 첫 번째 유효한 주석을 분석
     def eval(self) -> Optional[chess.engine.PovScore]:
         """
         Parses the first valid ``[%eval ...]`` annotation in the comment of
         this node, if any.
         """
         match = EVAL_REGEX.search(self.comment)
+        # match가 없다면 None 반환
         if not match:
             return None
 
@@ -444,6 +520,7 @@ class GameNode(abc.ABC):
 
         return chess.engine.PovScore(score if turn else -score, turn)
 
+    # 일치하는 깊이 반환
     def eval_depth(self) -> Optional[int]:
         """
         Parses the first valid ``[%eval ...]`` annotation in the comment of
@@ -452,6 +529,7 @@ class GameNode(abc.ABC):
         match = EVAL_REGEX.search(self.comment)
         return int(match.group("depth")) if match and match.group("depth") else None
 
+    # this node의 첫 번째 유효한 주석을 replace하거나 새로운 주석을 추가함
     def set_eval(self, score: Optional[chess.engine.PovScore], depth: Optional[int] = None) -> None:
         """
         Replaces the first valid ``[%eval ...]`` annotation in the comment of
@@ -466,13 +544,17 @@ class GameNode(abc.ABC):
             elif score.white().mate():
                 eval = f"[%eval #{score.white().mate()}{depth_suffix}]"
 
-        self.comment, found = EVAL_REGEX.subn(_condense_affix(eval), self.comment, count=1)
+        self.comment, found = EVAL_REGEX.subn(
+            _condense_affix(eval), self.comment, count=1)
 
         if not found and eval:
             if self.comment and not self.comment.endswith(" "):
                 self.comment += " "
             self.comment += eval
 
+    # svg.py의 Arrow Class 이용
+    # 사용자에대한 정보들을 반환
+    # this node의 모든 주석들에 대해 분석
     def arrows(self) -> List[chess.svg.Arrow]:
         """
         Parses all ``[%csl ...]`` and ``[%cal ...]`` annotations in the comment
@@ -487,6 +569,7 @@ class GameNode(abc.ABC):
 
         return arrows
 
+    # this node의 첫 번째 유효한 주석을 replace하거나 새로운 주석을 추가함
     def set_arrows(self, arrows: Iterable[Union[chess.svg.Arrow, Tuple[Square, Square]]]) -> None:
         """
         Replaces all valid ``[%csl ...]`` and ``[%cal ...]`` annotations in
@@ -501,7 +584,8 @@ class GameNode(abc.ABC):
                 arrow = chess.svg.Arrow(tail, head)
             except TypeError:
                 pass
-            (csl if arrow.tail == arrow.head else cal).append(arrow.pgn())  # type: ignore
+            (csl if arrow.tail == arrow.head else cal).append(
+                arrow.pgn())  # type: ignore
 
         self.comment = ARROWS_REGEX.sub(_condense_affix(""), self.comment)
 
@@ -516,6 +600,7 @@ class GameNode(abc.ABC):
         else:
             self.comment = prefix + self.comment
 
+    # this move 후에 플레이어의 남은 시간을 반환, 초 단위
     def clock(self) -> Optional[float]:
         """
         Parses the first valid ``[%clk ...]`` annotation in the comment of
@@ -529,6 +614,7 @@ class GameNode(abc.ABC):
             return None
         return int(match.group("hours")) * 3600 + int(match.group("minutes")) * 60 + float(match.group("seconds"))
 
+    # 시계의 시간 설정
     def set_clock(self, seconds: Optional[float]) -> None:
         """
         Replaces the first valid ``[%clk ...]`` annotation in the comment of
@@ -543,13 +629,15 @@ class GameNode(abc.ABC):
             seconds_part = f"{seconds:06.3f}".rstrip("0").rstrip(".")
             clk = f"[%clk {hours:d}:{minutes:02d}:{seconds_part}]"
 
-        self.comment, found = CLOCK_REGEX.subn(_condense_affix(clk), self.comment, count=1)
+        self.comment, found = CLOCK_REGEX.subn(
+            _condense_affix(clk), self.comment, count=1)
 
         if not found and clk:
             if self.comment and not self.comment.endswith(" ") and not self.comment.endswith("\n"):
                 self.comment += " "
             self.comment += clk
 
+    # 플레이어의 이동에 걸린 시간을 반환, 초 단위
     def emt(self) -> Optional[float]:
         """
         Parses the first valid ``[%emt ...]`` annotation in the comment of
@@ -563,6 +651,7 @@ class GameNode(abc.ABC):
             return None
         return int(match.group("hours")) * 3600 + int(match.group("minutes")) * 60 + float(match.group("seconds"))
 
+    # 플레이어의 이동에 걸린 시간 설정
     def set_emt(self, seconds: Optional[float]) -> None:
         """
         Replaces the first valid ``[%emt ...]`` annotation in the comment of
@@ -577,13 +666,17 @@ class GameNode(abc.ABC):
             seconds_part = f"{seconds:06.3f}".rstrip("0").rstrip(".")
             emt = f"[%emt {hours:d}:{minutes:02d}:{seconds_part}]"
 
-        self.comment, found = EMT_REGEX.subn(_condense_affix(emt), self.comment, count=1)
+        self.comment, found = EMT_REGEX.subn(
+            _condense_affix(emt), self.comment, count=1)
 
         if not found and emt:
             if self.comment and not self.comment.endswith(" ") and not self.comment.endswith("\n"):
                 self.comment += " "
             self.comment += emt
 
+    # 주어진 visitor를 사용하여 PGN 순서로 game node를 순회
+    # this node로 이어지는 move로 시작
+    # visitor의 결과 반환
     @abc.abstractmethod
     def accept(self, visitor: BaseVisitor[ResultT]) -> ResultT:
         """
@@ -591,6 +684,8 @@ class GameNode(abc.ABC):
         the move leading to this node. Returns the *visitor* result.
         """
 
+    # 게임이 this node 뒤로 시작되는 것처럼 headers와 game nodes 순회
+    # visitor의 결과 반환
     def accept_subgame(self, visitor: BaseVisitor[ResultT]) -> ResultT:
         """
         Traverses headers and game nodes in PGN order, as if the game was
@@ -626,6 +721,7 @@ class GameNode(abc.ABC):
         return self.accept(StringExporter(columns=None))
 
 
+# ChildNode
 class ChildNode(GameNode):
     """
     A child node of a game, with the move leading to it.
@@ -652,6 +748,7 @@ class ChildNode(GameNode):
     node of the game will never have NAGs.
     """
 
+    # 초기화
     def __init__(self, parent: GameNode, move: chess.Move, *, comment: str = "", starting_comment: str = "", nags: Iterable[int] = []) -> None:
         super().__init__(comment=comment)
         self.parent = parent
@@ -661,6 +758,7 @@ class ChildNode(GameNode):
         self.nags.update(nags)
         self.starting_comment = starting_comment
 
+    # __init__.py의 Board Class
     def board(self) -> chess.Board:
         stack: List[chess.Move] = []
         node: GameNode = self
@@ -684,15 +782,18 @@ class ChildNode(GameNode):
             node = node.parent
         return node.game().ply() + ply
 
+    # 표준 대수 표기법을 반환
     def san(self) -> str:
         """
         Gets the standard algebraic notation of the move leading to this node.
         See :func:`chess.Board.san()`.
 
+        # rood node를 가져올 수 없음
         Do not call this on the root node.
         """
         return self.parent.board().san(self.move)
 
+    # this node로 이어지는 move의 UCI표기법을 반환
     def uci(self, *, chess960: Optional[bool] = None) -> str:
         """
         Gets the UCI notation of the move leading to this node.
@@ -702,10 +803,13 @@ class ChildNode(GameNode):
         """
         return self.parent.board().uci(self.move, chess960=chess960)
 
+    # last node 반환
     def end(self) -> ChildNode:
         """Follows the main variation to the end and returns the last node."""
         return typing.cast(ChildNode, super().end())
 
+################################
+    # node에 접근
     def _accept_node(self, parent_board: chess.Board, visitor: BaseVisitor[ResultT]) -> None:
         if self.starting_comment:
             visitor.visit_comment(self.starting_comment)
@@ -716,12 +820,15 @@ class ChildNode(GameNode):
         visitor.visit_board(parent_board)
         parent_board.pop()
 
+        # sorted는 정렬 후 정렬된 리스트를 반환
         for nag in sorted(self.nags):
             visitor.visit_nag(nag)
 
         if self.comment:
             visitor.visit_comment(self.comment)
 
+    # 접근 stack
+    # ?????????????
     def _accept(self, parent_board: chess.Board, visitor: BaseVisitor[ResultT], *, sidelines: bool = True) -> None:
         stack = [_AcceptFrame(self, sidelines=sidelines)]
 
@@ -741,13 +848,15 @@ class ChildNode(GameNode):
                 except StopIteration:
                     if top.node.variations:
                         parent_board.push(top.node.move)
-                        stack.append(_AcceptFrame(top.node.variations[0], sidelines=True))
+                        stack.append(_AcceptFrame(
+                            top.node.variations[0], sidelines=True))
                         top.state = "post"
                     else:
                         top.state = "end"
                 else:
                     if visitor.begin_variation() is not SKIP:
-                        stack.append(_AcceptFrame(variation, sidelines=False, is_variation=True))
+                        stack.append(_AcceptFrame(
+                            variation, sidelines=False, is_variation=True))
                     top.in_variation = True
             elif top.state == "post":
                 parent_board.pop()
@@ -755,10 +864,13 @@ class ChildNode(GameNode):
             else:
                 stack.pop()
 
+    # PGN 순서로 game node 순회
+    # visitor 결과 반환
     def accept(self, visitor: BaseVisitor[ResultT]) -> ResultT:
         self._accept(self.parent.board(), visitor, sidelines=False)
         return visitor.result()
 
+    # ????????????????
     def __repr__(self) -> str:
         try:
             parent_board = self.parent.board()
@@ -794,12 +906,14 @@ class Game(GameNode):
     Headers(Event='?', Site='?', Date='????.??.??', Round='?', White='?', Black='?', Result='*')
     """
 
+    # errors list
     errors: List[Exception]
     """
     A list of errors (such as illegal or ambiguous moves) encountered while
     parsing the game.
     """
 
+    # 초기화
     def __init__(self, headers: Optional[Union[Mapping[str, str], Iterable[Tuple[str, str]]]] = None) -> None:
         super().__init__()
         self.headers = Headers(headers)
@@ -809,14 +923,18 @@ class Game(GameNode):
         return self.headers.board()
 
     # TODO: Consider naming.
+    # 작명 고민...?
     def _interactive_viewer(self) -> Any:
         from chess._interactive import InteractiveViewer
         return InteractiveViewer(self)  # type: ignore
 
+    # custom 시작 위치에 대해서만 분석
     def ply(self) -> int:
         # Optimization: Parse FEN only for custom starting positions.
         return self.board().ply() if "FEN" in self.headers else 0
 
+    # 특정 시작 위치 설정
+    # FEN, Setup, Variant header tags 설정
     def setup(self, board: Union[chess.Board, str]) -> None:
         """
         Sets up a specific starting position. This sets (or resets) the
@@ -845,6 +963,9 @@ class Game(GameNode):
         else:
             self.headers.pop("Variant", None)
 
+    # 주어진 visitor를 사용하여 PGN 순서로 game node를 순회
+    # this node로 이어지는 move로 시작
+    # visitor의 결과 반환
     def accept(self, visitor: BaseVisitor[ResultT]) -> ResultT:
         """
         Traverses the game in PGN order using the given *visitor*. Returns
@@ -906,6 +1027,7 @@ HeadersT = TypeVar("HeadersT", bound="Headers")
 
 
 class Headers(MutableMapping[str, str]):
+    # headers 초기화
     def __init__(self, data: Optional[Union[Mapping[str, str], Iterable[Tuple[str, str]]]] = None, **kwargs: str) -> None:
         self._tag_roster: Dict[str, str] = {}
         self._others: Dict[str, str] = {}
@@ -932,6 +1054,8 @@ class Headers(MutableMapping[str, str]):
             "fischer random",
         ]
 
+    # wild : 시작 위치가 표준이 아님
+    # 스타일에 따라 시작 위치가 다름
     def is_wild(self) -> bool:
         # http://www.freechess.org/Help/HelpFiles/wild.html
         return self.get("Variant", "").lower() in [
@@ -942,9 +1066,11 @@ class Headers(MutableMapping[str, str]):
         if "Variant" not in self or self.is_chess960() or self.is_wild():
             return chess.Board
         else:
+            # __init__.py, variant.py
             from chess.variant import find_variant
             return find_variant(self["Variant"])
 
+    #  board로 가져옴
     def board(self) -> chess.Board:
         VariantBoard = self.variant()
         fen = self.get("FEN", VariantBoard.starting_fen)
@@ -952,6 +1078,7 @@ class Headers(MutableMapping[str, str]):
         board.chess960 = board.chess960 or board.has_chess960_castling_rights()
         return board
 
+# ???????????????????????
     def __setitem__(self, key: str, value: str) -> None:
         if key in TAG_ROSTER:
             self._tag_roster[key] = value
@@ -981,15 +1108,18 @@ class Headers(MutableMapping[str, str]):
 
         yield from sorted(self._others)
 
+    # 길이 반환
     def __len__(self) -> int:
         return len(self._tag_roster) + len(self._others)
 
+    # copy
     def copy(self: HeadersT) -> HeadersT:
         return type(self)(self)
 
     def __copy__(self: HeadersT) -> HeadersT:
         return self.copy()
 
+# ??????????????????????????????????
     def __repr__(self) -> str:
         return "{}({})".format(
             type(self).__name__,
@@ -1002,14 +1132,21 @@ class Headers(MutableMapping[str, str]):
 
 MainlineMapT = TypeVar("MainlineMapT")
 
+# typing.py의 Generic Class 이용
+
 
 class Mainline(Generic[MainlineMapT]):
+    # 초기화
     def __init__(self, start: GameNode, f: Callable[[ChildNode], MainlineMapT]) -> None:
         self.start = start
         self.f = f
 
+    # childnode bool 반환
     def __bool__(self) -> bool:
         return bool(self.start.variations)
+
+    # yield : 사용 시 제너레이터 반환
+    # generator :  필요할 때마다 하나씩 만들어낼 수 있는 객체
 
     def __iter__(self) -> Iterator[MainlineMapT]:
         node = self.start
@@ -1039,6 +1176,7 @@ class Mainline(Generic[MainlineMapT]):
         return f"<Mainline at {id(self):#x} ({self.accept(StringExporter(columns=None, comments=False))})>"
 
 
+# typing.py의 Generic Class 이용
 class BaseVisitor(abc.ABC, Generic[ResultT]):
     """
     Base class for visitors.
@@ -1049,22 +1187,27 @@ class BaseVisitor(abc.ABC, Generic[ResultT]):
     The methods are called in PGN order.
     """
 
+    # 게임 시작 시 실행
     def begin_game(self) -> Optional[SkipType]:
         """Called at the start of a game."""
         pass
 
+    # game headers를 호출하기 전 방문
     def begin_headers(self) -> Optional[Headers]:
         """Called before visiting game headers."""
         pass
 
+    # 각 game geader에 대해 호출됨
     def visit_header(self, tagname: str, tagvalue: str) -> None:
         """Called for each game header."""
         pass
 
+    # game headers를 방문한 후 호출됨
     def end_headers(self) -> Optional[SkipType]:
         """Called after visiting game headers."""
         pass
 
+    # ????????????????????????
     def parse_san(self, board: chess.Board, san: str) -> chess.Move:
         """
         When the visitor is used by a parser, this is called to parse a move
@@ -1081,6 +1224,7 @@ class BaseVisitor(abc.ABC, Generic[ResultT]):
         """
         return board.parse_san(san)
 
+    # 각 move를 위해 호출
     def visit_move(self, board: chess.Board, move: chess.Move) -> None:
         """
         Called for each move.
@@ -1090,6 +1234,8 @@ class BaseVisitor(abc.ABC, Generic[ResultT]):
         """
         pass
 
+    # game의 starting position과 각 move후에 호출
+    # board의 상태는 순회 전에 복원되어야 한다 (?)
     def visit_board(self, board: chess.Board) -> None:
         """
         Called for the starting position of the game and after each move.
@@ -1098,14 +1244,18 @@ class BaseVisitor(abc.ABC, Generic[ResultT]):
         """
         pass
 
+    # 각 comment를 위해 호출
     def visit_comment(self, comment: str) -> None:
         """Called for each comment."""
         pass
 
+    # 각 NAG를 위해 호출
     def visit_nag(self, nag: int) -> None:
         """Called for each NAG."""
         pass
 
+    # new variation이 시작될 때 호출됨
+    # game의 mainline을 위해 호출되지 않음
     def begin_variation(self) -> Optional[SkipType]:
         """
         Called at the start of a new variation. It is not called for the
@@ -1113,16 +1263,19 @@ class BaseVisitor(abc.ABC, Generic[ResultT]):
         """
         pass
 
+    # variation 끝내기
     def end_variation(self) -> None:
         """Concludes a variation."""
         pass
 
+    # game의 끝에 Result header의 값과 호출됨
     def visit_result(self, result: str) -> None:
         """
         Called at the end of a game with the value from the ``Result`` header.
         """
         pass
 
+    # game의 끝에 호출됨
     def end_game(self) -> None:
         """Called at the end of a game."""
         pass
@@ -1131,11 +1284,13 @@ class BaseVisitor(abc.ABC, Generic[ResultT]):
     def result(self) -> ResultT:
         """Called to get the result of the visitor."""
 
+    # 발생한 오류에 대해 호출됨
     def handle_error(self, error: Exception) -> None:
         """Called for encountered errors. Defaults to raising an exception."""
         raise error
 
 
+# game modle 생성
 class GameBuilder(BaseVisitor[GameT]):
     """
     Creates a game model. Default visitor for :func:`~chess.pgn.read_game()`.
@@ -1146,9 +1301,11 @@ class GameBuilder(BaseVisitor[GameT]):
     @typing.overload
     def __init__(self: GameBuilder[GameT], *, Game: Type[GameT]) -> None: ...
 
+    # 초기화
     def __init__(self, *, Game: Any = Game) -> None:
         self.Game = Game
 
+    # game 시작
     def begin_game(self) -> None:
         self.game: GameT = self.Game()
 
@@ -1156,35 +1313,43 @@ class GameBuilder(BaseVisitor[GameT]):
         self.starting_comment = ""
         self.in_variation = False
 
+    # header
     def begin_headers(self) -> Headers:
         return self.game.headers
 
+    # header 방문
     def visit_header(self, tagname: str, tagvalue: str) -> None:
         self.game.headers[tagname] = tagvalue
 
+    # NAG 추가
     def visit_nag(self, nag: int) -> None:
         self.variation_stack[-1].nags.add(nag)
 
+    # variation 추가
     def begin_variation(self) -> None:
         parent = self.variation_stack[-1].parent
         assert parent is not None, "begin_variation called, but root node on top of stack"
         self.variation_stack.append(parent)
         self.in_variation = False
 
+    # variation 끝내기
     def end_variation(self) -> None:
         self.variation_stack.pop()
 
+    # 결과
     def visit_result(self, result: str) -> None:
         if self.game.headers.get("Result", "*") == "*":
             self.game.headers["Result"] = result
 
+    # comment
     def visit_comment(self, comment: str) -> None:
         if self.in_variation or (self.variation_stack[-1].parent is None and self.variation_stack[-1].is_end()):
             # Add as a comment for the current node if in the middle of
             # a variation. Add as a comment for the game if the comment
             # starts before any move.
             new_comment = [self.variation_stack[-1].comment, comment]
-            self.variation_stack[-1].comment = " ".join(filter(None, new_comment))
+            self.variation_stack[-1].comment = " ".join(
+                filter(None, new_comment))
         else:
             # Otherwise, it is a starting comment.
             new_comment = [self.starting_comment, comment]
@@ -1196,6 +1361,7 @@ class GameBuilder(BaseVisitor[GameT]):
         self.starting_comment = ""
         self.in_variation = True
 
+    # 오류 다루기
     def handle_error(self, error: Exception) -> None:
         """
         Populates :data:`chess.pgn.Game.errors` with encountered errors and
@@ -1236,13 +1402,16 @@ class GameBuilder(BaseVisitor[GameT]):
         return self.game
 
 
+# BaseVisitor 모음
 class HeadersBuilder(BaseVisitor[HeadersT]):
     """Collects headers into a dictionary."""
 
     @typing.overload
     def __init__(self: HeadersBuilder[Headers]) -> None: ...
+
     @typing.overload
-    def __init__(self: HeadersBuilder[HeadersT], *, Headers: Type[Headers]) -> None: ...
+    def __init__(self: HeadersBuilder[HeadersT],
+                 *, Headers: Type[Headers]) -> None: ...
 
     def __init__(self, *, Headers: Any = Headers) -> None:
         self.Headers = Headers
@@ -1261,6 +1430,7 @@ class HeadersBuilder(BaseVisitor[HeadersT]):
         return self.headers
 
 
+# __init__.py의 Board Class
 class BoardBuilder(BaseVisitor[chess.Board]):
     """
     Returns the final position of the game. The mainline of the game is
@@ -1285,6 +1455,7 @@ class BoardBuilder(BaseVisitor[chess.Board]):
         return self.board
 
 
+# game skip할 때
 class SkipVisitor(BaseVisitor[_TrueLiteral]):
     """Skips a game."""
 
@@ -1301,6 +1472,11 @@ class SkipVisitor(BaseVisitor[_TrueLiteral]):
         return True
 
 
+################################################################
+# game을 문자열(string)으로 내보낼 수 있음
+# 행당 열 문자만 기록돔
+# 열이 null --> 전체 이동 텍스트가 한 줄에 표시됨
+# header tags, 주석에는 영향 x
 class StringExporterMixin:
     def __init__(self, *, columns: Optional[int] = 80, headers: bool = True, comments: bool = True, variations: bool = True):
         self.columns = columns
@@ -1386,6 +1562,7 @@ class StringExporterMixin:
 
     def visit_result(self, result: str) -> None:
         self.write_token(result + " ")
+###########################################################
 
 
 class StringExporter(StringExporterMixin, BaseVisitor[str]):
@@ -1402,8 +1579,12 @@ class StringExporter(StringExporterMixin, BaseVisitor[str]):
     Only *columns* characters are written per line. If *columns* is ``None``,
     then the entire movetext will be on a single line. This does not affect
     header tags and comments.
+    한 줄에 *열* 문자만 들어감
+    만약 *열*이 None이면 전체 movetext가 한 줄에 옴
+    header tags, comments에는 영향이 없음
 
     There will be no newline characters at the end of the string.
+    string의 끝에 개행 문자는 없음
     """
 
     def result(self) -> str:
@@ -1414,6 +1595,11 @@ class StringExporter(StringExporterMixin, BaseVisitor[str]):
 
     def __str__(self) -> str:
         return self.result()
+
+#############################################################
+#############################################################
+
+# stringExporter 저럼 동작,그러나 게임은 txt file에 직접 기록
 
 
 class FileExporter(StringExporterMixin, BaseVisitor[int]):
@@ -1434,7 +1620,8 @@ class FileExporter(StringExporterMixin, BaseVisitor[int]):
     """
 
     def __init__(self, handle: TextIO, *, columns: Optional[int] = 80, headers: bool = True, comments: bool = True, variations: bool = True):
-        super().__init__(columns=columns, headers=headers, comments=comments, variations=variations)
+        super().__init__(columns=columns, headers=headers,
+                         comments=comments, variations=variations)
         self.handle = handle
 
     def begin_game(self) -> None:
@@ -1461,16 +1648,24 @@ class FileExporter(StringExporterMixin, BaseVisitor[int]):
     def __str__(self) -> str:
         return self.__repr__()
 
+##################################################
+##################################################
+
 
 @typing.overload
 def read_game(handle: TextIO) -> Optional[Game]: ...
+
+
 @typing.overload
-def read_game(handle: TextIO, *, Visitor: Callable[[], BaseVisitor[ResultT]]) -> Optional[ResultT]: ...
+def read_game(handle: TextIO, *,
+              Visitor: Callable[[], BaseVisitor[ResultT]]) -> Optional[ResultT]: ...
 
 
+# text mode로 열려있는 파일에서 game을 읽음
 def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
     """
     Reads a game from a file opened in text mode.
+    텍스트 모드에서 열린 파일으로 game을 읽는다
 
     >>> import chess.pgn
     >>>
@@ -1527,25 +1722,31 @@ def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
     unmanaged_headers: Optional[Headers] = None
 
     # Ignore leading empty lines and comments.
+    # 빈 lines, comments 무시
     line = handle.readline().lstrip("\ufeff")
     while line.isspace() or line.startswith("%") or line.startswith(";"):
         line = handle.readline()
 
     # Parse game headers.
+    # game headers 분석
     consecutive_empty_lines = 0
     while line:
         # Ignore comments.
+        # comments 무시
         if line.startswith("%") or line.startswith(";"):
             line = handle.readline()
             continue
 
         # Ignore up to one consecutive empty line between headers.
+        # headers 사이에 연속된 빈 line 무시
         if consecutive_empty_lines < 1 and line.isspace():
             consecutive_empty_lines += 1
             line = handle.readline()
             continue
 
         # First token of the game.
+        # game의 first token
+        # token????????
         if not found_game:
             found_game = True
             skipping_game = visitor.begin_game() is SKIP
@@ -1567,6 +1768,7 @@ def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
                     unmanaged_headers[tag_match.group(1)] = tag_match.group(2)
             else:
                 # Ignore invalid or malformed headers.
+                # 유효X or 잘못된 headers 무시
                 line = handle.readline()
                 continue
 
@@ -1589,6 +1791,7 @@ def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
             VariantBoard = chess.Board
 
         # Initial position.
+        # 초기 위치
         fen = headers.get("FEN", VariantBoard.starting_fen)
         try:
             board = VariantBoard(fen, chess960=headers.is_chess960())
@@ -1601,6 +1804,7 @@ def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
             visitor.visit_board(board)
 
     # Fast path: Skip entire game.
+    # 전체 game 건너뛰기
     if skipping_game:
         in_comment = False
 
@@ -1627,15 +1831,18 @@ def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
         return visitor.result()
 
     # Parse movetext.
+    # movetext 분석
     skip_variation_depth = 0
     fresh_line = True
     while line:
         if fresh_line:
             # Ignore comments.
+            # comments 무시
             if line.startswith("%") or line.startswith(";"):
                 line = handle.readline()
                 continue
             # An empty line means the end of a game.
+            # 빈 line은 game의 끝을 의미함
             if line.isspace():
                 visitor.end_game()
                 return visitor.result()
@@ -1656,7 +1863,9 @@ def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
 
                 if line:
                     close_index = line.find("}")
-                    end_index = close_index - 1 if close_index > 0 and line[close_index - 1] == " " else close_index
+                    end_index = close_index - \
+                        1 if close_index > 0 and line[close_index -
+                                                      1] == " " else close_index
                     comment_lines.append(line[:end_index])
                     line = line[close_index + 1:]
 
@@ -1664,6 +1873,7 @@ def read_game(handle: TextIO, *, Visitor: Any = GameBuilder) -> Any:
                     visitor.visit_comment("".join(comment_lines))
 
                 # Continue with the current line.
+                # 현재 line 부터 계속
                 fresh_line = False
                 break
             elif token == "(":
@@ -1729,10 +1939,14 @@ def read_headers(handle: TextIO) -> Optional[Headers]:
     """
     Reads game headers from a PGN file opened in text mode. Skips the rest of
     the game.
+    text mode에서 열린 PGN 파일에서 game headers 읽기
+    game의 나머지 부분 건너뛰기
 
     Since actually parsing many games from a big file is relatively expensive,
     this is a better way to look only for specific games and then seek and
     parse them later.
+    큰 파일에서 많은 game들을 분석하는건 상대적으로 expensive
+    specific games만 찾아서 나중에 분석하기
 
     This example scans for the first game with Kasparov as the white player.
 
@@ -1770,5 +1984,6 @@ def read_headers(handle: TextIO) -> Optional[Headers]:
 def skip_game(handle: TextIO) -> bool:
     """
     Skips a game. Returns ``True`` if a game was found and skipped.
+    game이 발견되면 true반환, skip
     """
     return bool(read_game(handle, Visitor=SkipVisitor))
