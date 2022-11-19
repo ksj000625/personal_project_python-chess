@@ -251,7 +251,7 @@ class AtomicBoard(chess.Board):
     def has_insufficient_material(self, color: chess.Color) -> bool:
         # Remaining material does not matter if opponent's king is already
         # exploded.
-        # 상대의 king이 죽었따면 남은 것들은 중요하지 않음
+        # 상대의 king이 죽었다면 남은 것들은 중요하지 않음
         if not (self.occupied_co[not color] & self.kings):
             return False
 
