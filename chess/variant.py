@@ -41,6 +41,10 @@ class SuicideBoard(chess.Board):
     one_king = False
     captures_compulsory = True
 
+    #
+    # __init__.py의 요소 사용
+    #
+
     def pin_mask(self, color: chess.Color, square: chess.Square) -> chess.Bitboard:
         return chess.BB_ALL
 
@@ -84,6 +88,10 @@ class SuicideBoard(chess.Board):
         else:
             return self.is_stalemate() and self._material_balance() == 0
 
+    #
+    ##################################
+    #
+
     def has_insufficient_material(self, color: chess.Color) -> bool:
         if not self.occupied_co[color]:
             return False
@@ -92,10 +100,16 @@ class SuicideBoard(chess.Board):
         elif self.occupied == self.bishops:
             # In a position with only bishops, check if all our bishops can be
             # captured.
-            we_some_on_light = bool(self.occupied_co[color] & chess.BB_LIGHT_SQUARES)
-            we_some_on_dark = bool(self.occupied_co[color] & chess.BB_DARK_SQUARES)
-            they_all_on_dark = not (self.occupied_co[not color] & chess.BB_LIGHT_SQUARES)
-            they_all_on_light = not (self.occupied_co[not color] & chess.BB_DARK_SQUARES)
+            # 비숍만 있는 위치에서 모든 우리 비숍들이 잡힐 수 있는지 check
+
+            we_some_on_light = bool(
+                self.occupied_co[color] & chess.BB_LIGHT_SQUARES)
+            we_some_on_dark = bool(
+                self.occupied_co[color] & chess.BB_DARK_SQUARES)
+            they_all_on_dark = not (
+                self.occupied_co[not color] & chess.BB_LIGHT_SQUARES)
+            they_all_on_light = not (
+                self.occupied_co[not color] & chess.BB_DARK_SQUARES)
             return (we_some_on_light and they_all_on_dark) or (we_some_on_dark and they_all_on_light)
         elif self.occupied == self.knights and chess.popcount(self.knights) == 2:
             return (
@@ -105,9 +119,16 @@ class SuicideBoard(chess.Board):
         else:
             return False
 
+        """
+        Legal Move : A pesudo-legal move which does not leave its own king
+        in check.
+        check 상황에서 king을 놔두지 않고 움직이는 것
+        """
+
     def generate_pseudo_legal_moves(self, from_mask: chess.Bitboard = chess.BB_ALL, to_mask: chess.Bitboard = chess.BB_ALL) -> Iterator[chess.Move]:
         for move in super().generate_pseudo_legal_moves(from_mask, to_mask):
             # Add king promotions.
+            # king promotions를 추가
             if move.promotion == chess.QUEEN:
                 yield chess.Move(move.from_square, move.to_square, chess.KING)
 
@@ -118,6 +139,7 @@ class SuicideBoard(chess.Board):
             return
 
         # Generate captures first.
+        # captures 먼저 생성
         found_capture = False
         for move in self.generate_pseudo_legal_captures():
             if chess.BB_SQUARES[move.from_square] & from_mask and chess.BB_SQUARES[move.to_square] & to_mask:
@@ -125,6 +147,8 @@ class SuicideBoard(chess.Board):
             found_capture = True
 
         # Captures are mandatory. Stop here if any were found.
+        # captures는 필수
+        # any가 발견 시 여기서 stop
         if not found_capture:
             not_them = to_mask & ~self.occupied_co[not self.turn]
             for move in self.generate_pseudo_legal_moves(from_mask, not_them):
@@ -141,6 +165,7 @@ class SuicideBoard(chess.Board):
             return not any(self.generate_pseudo_legal_captures())
 
     def _transposition_key(self) -> Hashable:
+        # castling 권한이 있는지 확인
         if self.has_chess960_castling_rights():
             return (super()._transposition_key(), self.kings & self.promoted)
         else:
@@ -160,6 +185,7 @@ class SuicideBoard(chess.Board):
         return status
 
 
+# SuicideBoard를 받은 GiveawayBoard Class
 class GiveawayBoard(SuicideBoard):
 
     aliases = ["Giveaway", "Giveaway chess", "Give away", "Give away chess"]
@@ -184,11 +210,13 @@ class GiveawayBoard(SuicideBoard):
     def is_variant_draw(self) -> bool:
         return False
 
+# GiveawawyBoard를 받은 AntichessBoard
+
 
 class AntichessBoard(GiveawayBoard):
 
     aliases = ["Antichess", "Anti chess", "Anti"]
-    uci_variant = "antichess"  # Unofficial
+    uci_variant = "antichess"  # Unofficial 비공식
     starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1"
 
     def __init__(self, fen: Optional[str] = starting_fen, chess960: bool = False) -> None:
@@ -223,6 +251,7 @@ class AtomicBoard(chess.Board):
     def has_insufficient_material(self, color: chess.Color) -> bool:
         # Remaining material does not matter if opponent's king is already
         # exploded.
+        # 상대의 king이 죽었따면 남은 것들은 중요하지 않음
         if not (self.occupied_co[not color] & self.kings):
             return False
 
@@ -242,14 +271,17 @@ class AtomicBoard(chess.Board):
             return False
 
         # Queen or pawn (future queen) can give mate against bare king.
+        # Queen or pawn은 혼자 남은 king을 상대로 mate 가능
         if self.queens or self.pawns:
             return False
 
         # Single knight, bishop or rook cannot mate against bare king.
+        # Single knight, bishop or rook은 혼자 남은 king을 상대로 mate 불가
         if chess.popcount(self.knights | self.bishops | self.rooks) == 1:
             return True
 
         # Two knights cannot mate against bare king.
+        # Two knights는 혼자 남은 king을 상대로 mate 불가
         if self.occupied == self.knights | self.kings:
             return chess.popcount(self.knights) <= 2
 
@@ -273,6 +305,7 @@ class AtomicBoard(chess.Board):
         explosion_radius = chess.BB_KING_ATTACKS[move.to_square] & ~self.pawns
 
         # Destroy castling rights.
+        # castling right 파괴
         self.castling_rights &= ~explosion_radius
         if explosion_radius & self.kings & self.occupied_co[chess.WHITE] & ~self.promoted:
             self.castling_rights &= ~chess.BB_RANK_1
@@ -280,9 +313,11 @@ class AtomicBoard(chess.Board):
             self.castling_rights &= ~chess.BB_RANK_8
 
         # Explode the capturing piece.
+        # capturing piece 제거
         self._remove_piece_at(move.to_square)
 
         # Explode all non pawns around.
+        # 폰 제외 주변 제거
         for explosion in chess.scan_forward(explosion_radius):
             self._remove_piece_at(explosion)
 
@@ -306,7 +341,8 @@ class AtomicBoard(chess.Board):
             return False
 
         self.push(move)
-        legal = bool(self.kings) and not self.is_variant_win() and (self.is_variant_loss() or not self.was_into_check())
+        legal = bool(self.kings) and not self.is_variant_win() and (
+            self.is_variant_loss() or not self.was_into_check())
         self.pop()
 
         return legal
@@ -319,6 +355,8 @@ class AtomicBoard(chess.Board):
             if self.is_legal(move):
                 yield move
 
+    # __init__.py 이용
+    # 상태 반환
     def status(self) -> chess.Status:
         status = super().status()
         status &= ~chess.STATUS_OPPOSITE_CHECK
@@ -394,6 +432,8 @@ class RacingKingsBoard(chess.Board):
         # White has reached the backrank. The game is over if black can not
         # also reach the backrank on the next move. Check if there are any
         # safe squares for the king.
+        # White가 Backrank에 도달 Black도 다음 move에서 Backrank 도달
+        # 실패시 game이 끝남
         black_king = chess.msb(black_kings)
         targets = chess.BB_KING_ATTACKS[black_king] & chess.BB_RANK_8 & ~self.occupied_co[chess.BLACK]
         return all(self.attackers_mask(chess.WHITE, target) for target in chess.scan_forward(targets))
@@ -415,6 +455,8 @@ class RacingKingsBoard(chess.Board):
     def has_insufficient_material(self, color: chess.Color) -> bool:
         return False
 
+    # __init__.py 이용
+    # 상태 반환
     def status(self) -> chess.Status:
         status = super().status()
         if self.is_check():
@@ -465,6 +507,13 @@ class HordeBoard(chess.Board):
     def is_variant_win(self) -> bool:
         return bool(self.occupied) and not self.occupied_co[not self.turn]
 
+    """
+    Horde 체스..?
+    white, black 둘의 구성이 다른 체스
+    """
+
+    ##################################################################
+
     def has_insufficient_material(self, color: chess.Color) -> bool:
         # The side with the king can always win by capturing the Horde.
         if color == chess.BLACK:
@@ -482,8 +531,10 @@ class HordeBoard(chess.Board):
 
         # Two same color bishops suffice to cover all the light and dark
         # squares around the enemy king.
-        horde_darkb = chess.popcount(chess.BB_DARK_SQUARES & white & self.bishops)
-        horde_lightb = chess.popcount(chess.BB_LIGHT_SQUARES & white & self.bishops)
+        horde_darkb = chess.popcount(
+            chess.BB_DARK_SQUARES & white & self.bishops)
+        horde_lightb = chess.popcount(
+            chess.BB_LIGHT_SQUARES & white & self.bishops)
         horde_bishop_co = chess.WHITE if horde_lightb >= 1 else chess.BLACK
         horde_num = (
             pawns + knights + rooks + queens +
@@ -497,8 +548,10 @@ class HordeBoard(chess.Board):
         pieces_knights = chess.popcount(pieces & self.knights)
         pieces_rooks = chess.popcount(pieces & self.rooks)
         pieces_queens = chess.popcount(pieces & self.queens)
-        pieces_darkb = chess.popcount(chess.BB_DARK_SQUARES & pieces & self.bishops)
-        pieces_lightb = chess.popcount(chess.BB_LIGHT_SQUARES & pieces & self.bishops)
+        pieces_darkb = chess.popcount(
+            chess.BB_DARK_SQUARES & pieces & self.bishops)
+        pieces_lightb = chess.popcount(
+            chess.BB_LIGHT_SQUARES & pieces & self.bishops)
         pieces_num = chess.popcount(pieces)
 
         def pieces_oppositeb_of(square_color: chess.Color) -> int:
@@ -555,9 +608,11 @@ class HordeBoard(chess.Board):
                 # white can mate.
                 pawn_square = chess.SquareSet(self.pawns & white).pop()
                 promote_to_queen = self.copy(stack=False)
-                promote_to_queen.set_piece_at(pawn_square, chess.Piece(chess.QUEEN, chess.WHITE))
+                promote_to_queen.set_piece_at(
+                    pawn_square, chess.Piece(chess.QUEEN, chess.WHITE))
                 promote_to_knight = self.copy(stack=False)
-                promote_to_knight.set_piece_at(pawn_square, chess.Piece(chess.KNIGHT, chess.WHITE))
+                promote_to_knight.set_piece_at(
+                    pawn_square, chess.Piece(chess.KNIGHT, chess.WHITE))
                 return promote_to_queen.has_insufficient_material(chess.WHITE) and promote_to_knight.has_insufficient_material(chess.WHITE)
             elif rooks == 1:
                 # A lone rook mates a king on A8 bounded by a pawn/rook on A7 and a
@@ -607,7 +662,8 @@ class HordeBoard(chess.Board):
                         (has_bishop_pair(chess.BLACK) and pieces_pawns >= 1)
                     ) and
                     (pieces_of_type_not(pieces_darkb) >= 3 if pieces_darkb >= 2 else True) and
-                    (pieces_of_type_not(pieces_lightb) >= 3 if pieces_lightb >= 2 else True)
+                    (pieces_of_type_not(pieces_lightb) >=
+                     3 if pieces_lightb >= 2 else True)
                 )
         elif horde_num == 2:  # By this point, we only need to deal with white's minor pieces.
             if pieces_num == 1:
@@ -671,6 +727,8 @@ class HordeBoard(chess.Board):
 
         return True
 
+######################################################################
+
     def status(self) -> chess.Status:
         status = super().status()
         status &= ~chess.STATUS_NO_WHITE_KING
@@ -690,6 +748,7 @@ class HordeBoard(chess.Board):
 
 ThreeCheckBoardT = TypeVar("ThreeCheckBoardT", bound="ThreeCheckBoard")
 
+
 class _ThreeCheckBoardState(Generic[ThreeCheckBoardT], chess._BoardState[ThreeCheckBoardT]):
     def __init__(self, board: ThreeCheckBoardT) -> None:
         super().__init__(board)
@@ -701,9 +760,11 @@ class _ThreeCheckBoardState(Generic[ThreeCheckBoardT], chess._BoardState[ThreeCh
         board.remaining_checks[chess.WHITE] = self.remaining_checks_w
         board.remaining_checks[chess.BLACK] = self.remaining_checks_b
 
+
 class ThreeCheckBoard(chess.Board):
 
-    aliases = ["Three-check", "Three check", "Threecheck", "Three check chess", "3-check", "3 check", "3check"]
+    aliases = ["Three-check", "Three check", "Threecheck",
+               "Three check chess", "3-check", "3 check", "3check"]
     uci_variant = "3check"
     xboard_variant = "3check"
     starting_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1"
@@ -737,16 +798,21 @@ class ThreeCheckBoard(chess.Board):
 
     def has_insufficient_material(self, color: chess.Color) -> bool:
         # Any remaining piece can give check.
+        # 남은 부분들은 check를 줄 수 있음
         return not (self.occupied_co[color] & ~self.kings)
 
     def set_epd(self, epd: str) -> Dict[str, Union[None, str, int, float, chess.Move, List[chess.Move]]]:
         parts = epd.strip().rstrip(";").split(None, 5)
 
         # Parse ops.
+        # __init__.py 이용
         if len(parts) > 5:
-            operations = self._parse_epd_ops(parts.pop(), lambda: type(self)(" ".join(parts) + " 0 1"))
-            parts.append(str(operations["hmvc"]) if "hmvc" in operations else "0")
-            parts.append(str(operations["fmvn"]) if "fmvn" in operations else "1")
+            operations = self._parse_epd_ops(
+                parts.pop(), lambda: type(self)(" ".join(parts) + " 0 1"))
+            parts.append(str(operations["hmvc"])
+                         if "hmvc" in operations else "0")
+            parts.append(str(operations["fmvn"])
+                         if "fmvn" in operations else "1")
             self.set_fen(" ".join(parts))
             return operations
         else:
@@ -757,20 +823,23 @@ class ThreeCheckBoard(chess.Board):
         parts = fen.split()
 
         # Extract check part.
+        # check part 추출
         if len(parts) >= 7 and parts[6][0] == "+":
             check_part = parts.pop(6)
             try:
                 w, b = check_part[1:].split("+", 1)
                 wc, bc = 3 - int(w), 3 - int(b)
             except ValueError:
-                raise ValueError(f"invalid check part in lichess three-check fen: {check_part!r}")
+                raise ValueError(
+                    f"invalid check part in lichess three-check fen: {check_part!r}")
         elif len(parts) >= 5 and "+" in parts[4]:
             check_part = parts.pop(4)
             try:
                 w, b = check_part.split("+", 1)
                 wc, bc = int(w), int(b)
             except ValueError:
-                raise ValueError(f"invalid check part in three-check fen: {check_part!r}")
+                raise ValueError(
+                    f"invalid check part in three-check fen: {check_part!r}")
         else:
             wc, bc = 3, 3
 
@@ -818,7 +887,15 @@ class ThreeCheckBoard(chess.Board):
         return board
 
 
+"""
+Crazyhouse
+잡은 기물을 판에 다시 내려놓을 수도 있음
+
+pocket ?????
+"""
+
 CrazyhouseBoardT = TypeVar("CrazyhouseBoardT", bound="CrazyhouseBoard")
+
 
 class _CrazyhouseBoardState(Generic[CrazyhouseBoardT], chess._BoardState[CrazyhouseBoardT]):
     def __init__(self, board: CrazyhouseBoardT) -> None:
@@ -831,7 +908,9 @@ class _CrazyhouseBoardState(Generic[CrazyhouseBoardT], chess._BoardState[Crazyho
         board.pockets[chess.WHITE] = self.pockets_w
         board.pockets[chess.BLACK] = self.pockets_b
 
+
 CrazyhousePocketT = TypeVar("CrazyhousePocketT", bound="CrazyhousePocket")
+
 
 class CrazyhousePocket:
     """A Crazyhouse pocket with a counter for each piece type."""
@@ -851,7 +930,8 @@ class CrazyhousePocket:
 
     def remove(self, piece_type: chess.PieceType) -> None:
         """Removes a piece of the given type from this pocket."""
-        assert self._pieces[piece_type], f"cannot remove {chess.piece_symbol(piece_type)} from {self!r}"
+        assert self._pieces[
+            piece_type], f"cannot remove {chess.piece_symbol(piece_type)} from {self!r}"
         self._pieces[piece_type] -= 1
 
     def count(self, piece_type: chess.PieceType) -> int:
@@ -872,6 +952,7 @@ class CrazyhousePocket:
         pocket = type(self)()
         pocket._pieces = self._pieces[:]
         return pocket
+
 
 class CrazyhouseBoard(chess.Board):
 
@@ -988,7 +1069,8 @@ class CrazyhouseBoard(chess.Board):
                 uci = "P" + uci
             move = chess.Move.from_uci(uci)
             if not self.is_legal(move):
-                raise chess.IllegalMoveError(f"illegal drop san: {san!r} in {self.fen()}")
+                raise chess.IllegalMoveError(
+                    f"illegal drop san: {san!r} in {self.fen()}")
             return move
         else:
             return super().parse_san(san)
@@ -1011,9 +1093,11 @@ class CrazyhouseBoard(chess.Board):
         position_part, info_part = fen.split(None, 1)
 
         # Transform to lichess-style ZH FEN.
+        # lichess 스타일 ZH FEN으로 전환
         if position_part.endswith("]"):
             if position_part.count("/") != 7:
-                raise ValueError(f"expected 8 rows in position part of zh fen: {fen!r}")
+                raise ValueError(
+                    f"expected 8 rows in position part of zh fen: {fen!r}")
             position_part = position_part[:-1].replace("[", "/", 1)
 
         # Split off pocket part.
@@ -1023,8 +1107,10 @@ class CrazyhouseBoard(chess.Board):
             pocket_part = ""
 
         # Parse pocket.
-        white_pocket = CrazyhousePocket(c.lower() for c in pocket_part if c.isupper())
-        black_pocket = CrazyhousePocket(c for c in pocket_part if not c.isupper())
+        white_pocket = CrazyhousePocket(c.lower()
+                                        for c in pocket_part if c.isupper())
+        black_pocket = CrazyhousePocket(
+            c for c in pocket_part if not c.isupper())
 
         # Set FEN and pockets.
         super().set_fen(position_part + " " + info_part)
@@ -1083,6 +1169,9 @@ def find_variant(name: str) -> Type[chess.Board]:
     """
     Looks for a variant board class by variant name. Supports many common
     aliases.
+
+    variant name으로 board class를 찾음
+    많은 일반적인 별칭(aliases)을 지원함
     """
     for variant in VARIANTS:
         if any(alias.lower() == name.lower() for alias in variant.aliases):
