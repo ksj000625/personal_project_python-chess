@@ -13,7 +13,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-
+'''
+syzygy.py:  
+endgame tablebases 엔드게임에서 기물의 위치 상황에 대하여 미리 계산해 놓은 데이터베이스로
+Syzygy 테이블베이스는 WDL50(50수 규칙에 따른 승/무/패) 및 DTZ50'' 의 정보를 최대 7개 pieces로 이루어진 모든 엔드게임에 대해 제공함.
+(캐슬링 권한이 있는 직위는 포함되지 않음)
+'''
 from __future__ import annotations
 
 import collections
@@ -372,7 +377,7 @@ PCHR = ["K", "Q", "R", "B", "N", "P"]
 
 TABLENAME_REGEX = re.compile(r"^[KQRBNP]+v[KQRBNP]+\Z")
 
-
+#endgame tablename bool 값 리턴하는 함수
 def is_tablename(name: str, *, one_king: bool = True, piece_count: Optional[int] = TBPIECES, normalized: bool = True) -> bool:
     return (
         (piece_count is None or len(name) <= piece_count + 1) and
@@ -380,7 +385,7 @@ def is_tablename(name: str, *, one_king: bool = True, piece_count: Optional[int]
         (not normalized or normalize_tablename(name) == name) and
         (not one_king or (name != "KvK" and name.startswith("K") and "vK" in name)))
 
-
+#endgame tablenames 함수
 def tablenames(*, one_king: bool = True, piece_count: int = 6) -> Iterator[str]:
     first = "K" if one_king else "P"
 
@@ -395,7 +400,7 @@ def tablenames(*, one_king: bool = True, piece_count: int = 6) -> Iterator[str]:
 
     return all_dependencies(targets, one_king=one_king)
 
-
+#tablename 정규 표현하는 함수
 def normalize_tablename(name: str, *, mirror: bool = False) -> str:
     w, b = name.split("v", 1)
     w = "".join(sorted(w, key=PCHR.index))
@@ -413,7 +418,7 @@ def _dependencies(target: str, *, one_king: bool = True) -> Iterator[str]:
         if p == "K" and one_king:
             continue
 
-        # Promotions.
+        # promotion.
         if p != "P" and "P" in w:
             yield normalize_tablename(w.replace("P", p, 1) + "v" + b)
         if p != "P" and "P" in b:
@@ -514,7 +519,7 @@ def subfactor(k: int, n: int) -> int:
 def dtz_before_zeroing(wdl: int) -> int:
     return ((wdl > 0) - (wdl < 0)) * (1 if abs(wdl) == 2 else 101)
 
-
+#필요한 테이블이 없기 때문에 예외 발생 (예외 대신 None을 가져오려면 get_wdl()을 사용
 class MissingTableError(KeyError):
     """Can not probe position because a required table is missing."""
     pass
@@ -1483,7 +1488,7 @@ class DtzTable(Table):
         self.files[f].factor = [0 for _ in range(TBPIECES)]
         self.tb_size[p_tb_size] = self.calc_factors_pawn(self.files[f].factor, order, order2, self.files[f].norm, f)
 
-
+#class Tablebase: 프로빙할 tablebase files를 관리하는 class(max_fds가 None이 아니면 주어진 시간에 최대 max_fds개의 열린 file descriptor를 사용함.필요한 경우 가장 최근에 사용한 테이블이 닫힘.)
 class Tablebase:
     """
     Manages a collection of tablebase files for probing.
@@ -1492,6 +1497,7 @@ class Tablebase:
     descriptors at any given time. The least recently used tables are closed,
     if necessary.
     """
+
     def __init__(self, *, max_fds: Optional[int] = 128, VariantBoard: Type[chess.Board] = chess.Board) -> None:
         self.variant = VariantBoard
 
@@ -1501,7 +1507,7 @@ class Tablebase:
 
         self.wdl: Dict[str, Table] = {}
         self.dtz: Dict[str, Table] = {}
-
+    
     def _bump_lru(self, table: Table) -> None:
         if self.max_fds is None:
             return
@@ -1528,16 +1534,10 @@ class Tablebase:
 
     def add_directory(self, directory: str, *, load_wdl: bool = True, load_dtz: bool = True) -> int:
         """
-        Adds tables from a directory.
-
-        By default, all available tables with the correct file names
-        (e.g., WDL files like ``KQvKN.rtbw`` and DTZ files like ``KRBvK.rtbz``)
-        are added.
-
-        The relevant files are lazily opened when the tablebase is actually
-        probed.
-
-        Returns the number of table files that were found.
+        디렉토리에서 테이블을 추가할 수 있는 함수.
+        기본적으로 올바른 파일 이름을 가진 사용 가능한 모든 테이블(예: KQvKN.rtbw와 같은 WDL 파일 및 KRBvK.rtbz와 같은 DTZ 파일)이 추가됨.
+        테이블베이스를 실제로 프로브할 때 관련 파일이 느리게 열림.
+        발견된 테이블 파일 수를 반환함.
         """
         num = 0
         directory = os.path.abspath(directory)
@@ -1560,7 +1560,7 @@ class Tablebase:
                         num += self._open_table(self.dtz, DtzTable, path)
 
         return num
-
+    
     def probe_wdl_table(self, board: chess.Board) -> int:
         # Test for variant end.
         if board.is_variant_win():
@@ -1679,19 +1679,12 @@ class Tablebase:
 
     def probe_wdl(self, board: chess.Board) -> int:
         """
-        Probes WDL tables for win/draw/loss information under the 50-move rule,
-        assuming the position has been reached directly after a capture or
-        pawn move.
-
-        Probing is thread-safe when done with different *board* objects and
-        if *board* objects are not modified during probing.
-
-        Returns ``2`` if the side to move is winning, ``0`` if the position is
-        a draw and ``-2`` if the side to move is losing.
-
-        Returns ``1`` in case of a cursed win and ``-1`` in case of a blessed
-        loss. Mate can be forced but the position can be drawn due to the
-        fifty-move rule.
+        WDL 테이블에 50-move 규칙에 따라 WDL 테이블에서 Win/Draw/Loss 정보를 조사하는 함수.
+        캡처 또는 폰 이동 후 위치에 직접 도달했다고 가정.
+        프로빙은 다른 보드 개체로 수행되고 프로빙 중에 보드 개체가 수정되지 않는 경우 스레드 세이프임.
+        이동할 쪽이 이기고 있으면 2를 반환하고, 위치가 무승부이면 0을 반환하고, 이동할 쪽이 지고 있으면 -2를 반환함.
+        저주받은 승리일 경우 1을 반환하고 축복받은 패배일 경우 -1을 반환한다. 메이트는 강제할 수 있지만 50 이동 규칙에 따라 위치를 그릴 수 있음.
+        
 
         >>> import chess
         >>> import chess.syzygy
@@ -1742,7 +1735,7 @@ class Tablebase:
                     v = v1
 
         return v
-
+    #예외 대신 None을 가져오려면 get_wdl()을 사용
     def get_wdl(self, board: chess.Board, default: Optional[int] = None) -> Optional[int]:
         try:
             return self.probe_wdl(board)
@@ -1834,19 +1827,18 @@ class Tablebase:
 
     def probe_dtz(self, board: chess.Board) -> int:
         """
-        Probes DTZ tables for
-        `DTZ50'' information with rounding <https://syzygy-tables.info/metrics#dtz>`_.
+       DTZ table을 프로브하는 함수.
+       DTZ50' 값을 최소로 설정하면 승리를 손에 쥐고 진행하기 때문에 승리 포지션을 획득할 수 있음. 하지만, 선이 항상 이기는 가장 직접적인 방법은 아님. 
+       스톡피쉬와 같은 엔진은 DTZ로 확인하면서 스스로 계산하지만, 스스로 관리할 수 없는 경우에만 DTZ에 따라 계산됨.
+       이동할 쪽이 이기고 있으면 양의 값을 반환하고, 위치가 무승부이면 0을 반환하며, 이동할 쪽이 지고 있으면 음의 값을 반환하게 됨.
 
-        Minmaxing the DTZ50'' values guarantees winning a won position
-        (and drawing a drawn position), because it makes progress keeping the
-        win in hand.
-        However, the lines are not always the most straightforward ways to win.
-        Engines like Stockfish calculate themselves, checking with DTZ, but
-        only play according to DTZ if they can not manage on their own.
-
-        Returns a positive value if the side to move is winning, ``0`` if the
-        position is a draw, and a negative value if the side to move is losing.
-        More precisely:
+       반환 값은 1씩 벗어날 수 있음.
+       반환값 -n: n+1 파일에서 losing zeroing move를 의미함.
+       반환값 n+: n+1 파일에서 winning zeroing move를 의미함.
+       이는 일부 기본 테이블베이스 라인이 최대 1 ply를 낭비 할 수 있음을 의미. 
+       반올림은 게임의 이론적 결과를 바꾸는 엔드게임 단계에서 절대 사용되지 않음.
+       
+       *프로빙은 다른 보드 객체로 수행되고 프로빙 중에 보드 객체가 수정되지 않는 경우에는 thread-safe.
 
         +-----+------------------+--------------------------------------------+
         | WDL | DTZ              |                                            |
@@ -1872,18 +1864,6 @@ class Tablebase:
         |     |                  | be forced in n plies.                      |
         +-----+------------------+--------------------------------------------+
 
-        The return value can be off by one: a return value -n can mean a
-        losing zeroing move in in n + 1 plies and a return value +n can mean a
-        winning zeroing move in n + 1 plies.
-        This implies some primary tablebase lines may waste up to 1 ply.
-        Rounding is never used for endgame phases where it would change the
-        game theoretical outcome.
-
-        This means users need to be careful in positions that are nearly drawn
-        under the 50-move rule! Carelessly wasting 1 more ply by not following
-        the tablebase recommendation, for a total of 2 wasted plies, may
-        change the outcome of the game.
-
         >>> import chess
         >>> import chess.syzygy
         >>>
@@ -1892,17 +1872,6 @@ class Tablebase:
         ...     print(tablebase.probe_dtz(board))
         ...
         -53
-
-        Probing is thread-safe when done with different *board* objects and
-        if *board* objects are not modified during probing.
-
-        Both DTZ and WDL tables are required in order to probe for DTZ.
-
-        :raises: :exc:`KeyError` (or specifically
-            :exc:`chess.syzygy.MissingTableError`) if the position could not
-            be found in the tablebase. Use
-            :func:`~chess.syzygy.Tablebase.get_dtz()` if you prefer to get
-            ``None`` instead of an exception.
 
             Note that probing corrupted table files is undefined behavior.
         """
@@ -1946,15 +1915,14 @@ class Tablebase:
                     v = v1
 
         return v
-
+    #keyerror가 발생했을 때(chess.syzygy.MissingTableError) 테이블베이스에서 위치를 찾을 수 없는 경우에 예외 대신 None 값을 얻기 위해 사용하는 함수.
     def get_dtz(self, board: chess.Board, default: Optional[int] = None) -> Optional[int]:
         try:
             return self.probe_dtz(board)
         except KeyError:
             return default
-
+    #로드된 테이블을 모두 닫는 함수
     def close(self) -> None:
-        """Closes all loaded tables."""
         while self.wdl:
             _, wdl = self.wdl.popitem()
             wdl.close()
@@ -1974,8 +1942,9 @@ class Tablebase:
 
 def open_tablebase(directory: str, *, load_wdl: bool = True, load_dtz: bool = True, max_fds: Optional[int] = 128, VariantBoard: Type[chess.Board] = chess.Board) -> Tablebase:
     """
-    Opens a collection of tables for probing. See
-    :class:`~chess.syzygy.Tablebase`.
+    프로빙할 tablebase를 열 수 있는 함수.
+    (일반적인 프로빙은 특정 구성에 대한 테이블베이스 파일을 필요로 함.
+    5-piece나 7-piece 파일은 모두 6-piece 파일이 필요하기 때문에 add_directory()를 사용해 6-piece 파일을 추가 디렉토리에서 테이블을 로드하면 됨.)
 
     .. note::
 
