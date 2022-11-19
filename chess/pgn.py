@@ -172,6 +172,7 @@ ARROWS_REGEX = re.compile(r"""
 
 
 # 파라메터 옆의 -> 부분은 주석 역할을 함
+
 def _condense_affix(infix: str) -> Callable[[typing.Match[str]], str]:
     def repl(match: typing.Match[str]) -> str:
         if infix:
@@ -245,6 +246,7 @@ class GameNode(abc.ABC):
         self.starting_comment = ""
         self.nags = set()
 
+    # 노드의 위치가 있는 보드를 가져오는 메소드
     @abc.abstractmethod
     def board(self) -> chess.Board:
         """
@@ -344,7 +346,7 @@ class GameNode(abc.ABC):
 
         return True
 
-    # 부모의 관점에서 this node가 첫번째 variation인지 확인
+    # 부모의 관점에서 this node가 첫 번째 variation인지 확인
     # root node는 mainline위에 존재
     def is_main_variation(self) -> bool:
         """
@@ -1474,7 +1476,7 @@ class SkipVisitor(BaseVisitor[_TrueLiteral]):
 
 ################################################################
 # game을 문자열(string)으로 내보낼 수 있음
-# 행당 열 문자만 기록돔
+# 행당 열 문자만 기록됨
 # 열이 null --> 전체 이동 텍스트가 한 줄에 표시됨
 # header tags, 주석에는 영향 x
 class StringExporterMixin:
@@ -1602,6 +1604,7 @@ class StringExporter(StringExporterMixin, BaseVisitor[str]):
 # stringExporter 저럼 동작,그러나 게임은 txt file에 직접 기록
 
 
+# 게임을 텍스트 파일에 직접 기록하는 클래스
 class FileExporter(StringExporterMixin, BaseVisitor[int]):
     """
     Acts like a :class:`~chess.pgn.StringExporter`, but games are written
